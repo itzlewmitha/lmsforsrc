@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>School Library Dashboard</title>
+</head>
+<body>
+
+<h2>📚 Student Registration</h2>
+
+<input id="adm" placeholder="Admission Number"><br>
+<input id="name" placeholder="Name"><br>
+<input id="cls" placeholder="Class"><br>
+<input id="email" placeholder="Email"><br>
+<input id="phone" placeholder="Phone"><br>
+
+<button onclick="register()">Register Student</button>
+
+<hr>
+
+<h2>📖 Students</h2>
+<pre id="out">Loading...</pre>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbxgDMpbW8jJmRKjsvmQjFaXZ5NB5vSXWON0y5nYSL7J5C1hA3UX45g69jxpL2_YLenMww/exec";
+
+function register() {
+  fetch(API, {
+    method: "POST",
+    body: JSON.stringify({
+      action: "addStudent",
+      payload: {
+        admissionNumber: adm.value,
+        name: name.value,
+        class: cls.value,
+        email: email.value,
+        phone: phone.value
+      }
+    })
+  })
+  .then(r => r.json())
+  .then(d => alert("Registered"));
+}
+
+fetch(API, {
+  method: "POST",
+  body: JSON.stringify({ action: "getStudents" })
+})
+.then(r => r.json())
+.then(d => out.textContent = JSON.stringify(d, null, 2));
+</script>
+
+</body>
+</html>
