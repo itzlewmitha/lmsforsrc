@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ANU School Library Management System</title>
+    <title>Rahula School Library Management System</title>
     
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -633,7 +633,7 @@
     <!-- Login Page -->
     <div id="loginPage" class="login-container">
         <div class="login-box">
-            <h1><i class="fas fa-book"></i> ANU Library System</h1>
+            <h1><i class="fas fa-book"></i> Rahula Library System</h1>
             <p class="login-subtitle">Admin Dashboard - Restricted Access</p>
             
             <div id="loginError" class="error-message"></div>
@@ -651,7 +651,7 @@
             <button id="loginBtn" class="btn">Login</button>
             
             <div id="demoNote" style="margin-top: 20px; padding: 10px; background-color: #fff3cd; border-radius: 5px; font-size: 13px; color: #856404;">
-                <strong>Demo Note:</strong> This dashboard is only accessible to authorized admins. Students/teachers register via Google Forms.
+                <strong>Note:</strong> This dashboard is only accessible to authorized admins. Students/teachers register via Google Forms.
             </div>
         </div>
     </div>
@@ -660,7 +660,7 @@
     <div id="dashboardPage" class="dashboard-container">
         <!-- Header -->
         <header class="header">
-            <h2><i class="fas fa-book"></i> ANU School Library Management System</h2>
+            <h2><i class="fas fa-book"></i> School Library Management System</h2>
             <div class="user-info">
                 <span class="user-email" id="userEmail"></span>
                 <button id="logoutBtn" class="logout-btn">Logout</button>
@@ -1234,6 +1234,9 @@
         let books = [];
         let users = [];
         let rentals = [];
+        let booksUnsubscribe = null;
+        let usersUnsubscribe = null;
+        let rentalsUnsubscribe = null;
 
         // Authentication State Observer
         auth.onAuthStateChanged((user) => {
@@ -1243,6 +1246,7 @@
                 if (allowedEmails.includes(user.email)) {
                     // User is signed in and authorized
                     showDashboard(user);
+                    setupRealtimeListeners();
                 } else {
                     // User is signed in but not authorized
                     auth.signOut();
@@ -1251,8 +1255,80 @@
             } else {
                 // User is signed out
                 showLogin();
+                cleanupRealtimeListeners();
             }
         });
+
+        // Setup real-time listeners
+        function setupRealtimeListeners() {
+            // Listen to books collection
+            booksUnsubscribe = db.collection('books').onSnapshot((snapshot) => {
+                updateBooksData(snapshot);
+                loadDashboardData(); // Refresh dashboard when books change
+            }, (error) => {
+                console.error('Books listener error:', error);
+            });
+
+            // Listen to users collection
+            usersUnsubscribe = db.collection('users').onSnapshot((snapshot) => {
+                updateUsersData(snapshot);
+                loadDashboardData(); // Refresh dashboard when users change
+            }, (error) => {
+                console.error('Users listener error:', error);
+            });
+
+            // Listen to rentals collection
+            rentalsUnsubscribe = db.collection('rentals').onSnapshot((snapshot) => {
+                updateRentalsData(snapshot);
+                loadDashboardData(); // Refresh dashboard when rentals change
+            }, (error) => {
+                console.error('Rentals listener error:', error);
+            });
+        }
+
+        // Cleanup real-time listeners
+        function cleanupRealtimeListeners() {
+            if (booksUnsubscribe) booksUnsubscribe();
+            if (usersUnsubscribe) usersUnsubscribe();
+            if (rentalsUnsubscribe) rentalsUnsubscribe();
+        }
+
+        // Update books data
+        function updateBooksData(snapshot) {
+            books = [];
+            snapshot.forEach(doc => {
+                books.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // If we're on the books section, update the table
+            if (document.getElementById('booksSection').classList.contains('active')) {
+                renderBooksTable();
+            }
+        }
+
+        // Update users data
+        function updateUsersData(snapshot) {
+            users = [];
+            snapshot.forEach(doc => {
+                users.push({ id: doc.id, ...doc.data() });
+            });
+        }
+
+        // Update rentals data
+        function updateRentalsData(snapshot) {
+            rentals = [];
+            snapshot.forEach(doc => {
+                rentals.push({ id: doc.id, ...doc.data() });
+            });
+            
+            // Update relevant sections if active
+            if (document.getElementById('rentSection').classList.contains('active')) {
+                renderActiveRentals();
+            }
+            if (document.getElementById('returnsSection').classList.contains('active')) {
+                renderOverdueBooks();
+            }
+        }
 
         // Login Function
         loginBtn.addEventListener('click', () => {
@@ -1297,9 +1373,9 @@
                 if (target === 'dashboard') {
                     loadDashboardData();
                 } else if (target === 'books') {
-                    loadBooks();
+                    renderBooksTable();
                 } else if (target === 'rent') {
-                    loadActiveRentals();
+                    renderActiveRentals();
                     // Set today's date as default
                     const today = new Date().toISOString().split('T')[0];
                     rentDateInput.value = today;
@@ -1308,7 +1384,7 @@
                     dueDate.setDate(dueDate.getDate() + 14);
                     dueDateInput.value = dueDate.toISOString().split('T')[0];
                 } else if (target === 'returns') {
-                    loadOverdueBooks();
+                    renderOverdueBooks();
                 } else if (target === 'reports') {
                     loadReports();
                 }
@@ -1337,7 +1413,6 @@
             
             // Load initial data
             loadDashboardData();
-            loadBooks();
         }
 
         // Error Message Helper
@@ -1376,26 +1451,17 @@
         // Load Dashboard Data
         async function loadDashboardData() {
             try {
-                // Load books count
-                const booksSnapshot = await db.collection('books').get();
-                const totalBooks = booksSnapshot.size;
-                const rentedBooks = booksSnapshot.docs.filter(doc => doc.data().status === 'rented').length;
+                // Calculate stats from current data
+                const totalBooks = books.length;
+                const rentedBooks = books.filter(book => book.status === 'rented').length;
+                const totalUsers = users.length;
                 
-                // Load users count
-                const usersSnapshot = await db.collection('users').get();
-                const totalUsers = usersSnapshot.size;
-                
-                // Load rentals
-                const rentalsSnapshot = await db.collection('rentals')
-                    .where('status', '==', 'active')
-                    .orderBy('rentDate', 'desc')
-                    .limit(10)
-                    .get();
-                
-                const overdueCount = rentalsSnapshot.docs.filter(doc => {
-                    const dueDate = doc.data().dueDate.toDate();
-                    return dueDate < new Date();
-                }).length;
+                // Calculate overdue books
+                const today = new Date();
+                const overdueCount = rentals.filter(rental => 
+                    rental.status === 'active' && 
+                    rental.dueDate.toDate() < today
+                ).length;
                 
                 // Update UI
                 totalBooksEl.textContent = totalBooks;
@@ -1404,78 +1470,77 @@
                 registeredUsersEl.textContent = totalUsers;
                 
                 // Update recent rentals table
-                recentRentalsBody.innerHTML = '';
-                rentalsSnapshot.forEach(doc => {
-                    const rental = doc.data();
-                    const row = document.createElement('tr');
-                    
-                    const dueDate = rental.dueDate.toDate();
-                    const isOverdue = dueDate < new Date();
-                    const statusClass = isOverdue ? 'status-overdue' : 'status-rented';
-                    const statusText = isOverdue ? 'Overdue' : 'Active';
-                    
-                    row.innerHTML = `
-                        <td>${rental.admissionNumber}</td>
-                        <td>${rental.bookTitle}</td>
-                        <td>${formatDate(rental.rentDate)}</td>
-                        <td>${formatDate(rental.dueDate)}</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                    `;
-                    recentRentalsBody.appendChild(row);
-                });
-                
-                if (rentalsSnapshot.empty) {
-                    recentRentalsBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;">No recent rentals found</td></tr>';
-                }
+                renderRecentRentals();
                 
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
             }
         }
 
-        // Load Books
-        async function loadBooks() {
+        // Render recent rentals
+        function renderRecentRentals() {
+            recentRentalsBody.innerHTML = '';
+            
+            // Get recent active rentals
+            const recentRentals = rentals
+                .filter(rental => rental.status === 'active')
+                .sort((a, b) => b.rentDate.toDate() - a.rentDate.toDate())
+                .slice(0, 10);
+            
+            recentRentals.forEach(rental => {
+                const row = document.createElement('tr');
+                
+                const dueDate = rental.dueDate.toDate();
+                const isOverdue = dueDate < new Date();
+                const statusClass = isOverdue ? 'status-overdue' : 'status-rented';
+                const statusText = isOverdue ? 'Overdue' : 'Active';
+                
+                row.innerHTML = `
+                    <td>${rental.admissionNumber}</td>
+                    <td>${rental.bookTitle}</td>
+                    <td>${formatDate(rental.rentDate)}</td>
+                    <td>${formatDate(rental.dueDate)}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                `;
+                recentRentalsBody.appendChild(row);
+            });
+            
+            if (recentRentals.length === 0) {
+                recentRentalsBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;">No recent rentals found</td></tr>';
+            }
+        }
+
+        // Render books table
+        function renderBooksTable() {
             booksLoading.style.display = 'block';
             booksTableBody.innerHTML = '';
             
-            try {
-                const snapshot = await db.collection('books').orderBy('title').get();
-                books = [];
+            books.forEach(book => {
+                const row = document.createElement('tr');
+                const statusClass = `status-${book.status}`;
+                const statusText = book.status.charAt(0).toUpperCase() + book.status.slice(1);
                 
-                snapshot.forEach(doc => {
-                    const book = { id: doc.id, ...doc.data() };
-                    books.push(book);
-                    
-                    const row = document.createElement('tr');
-                    const statusClass = `status-${book.status}`;
-                    const statusText = book.status.charAt(0).toUpperCase() + book.status.slice(1);
-                    
-                    row.innerHTML = `
-                        <td>${book.barcode}</td>
-                        <td>${book.title}</td>
-                        <td>${book.author}</td>
-                        <td>${book.category}</td>
-                        <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                        <td>
-                            <div class="action-buttons">
-                                <button class="action-btn edit" onclick="editBook('${book.id}')">Edit</button>
-                                <button class="action-btn delete" onclick="deleteBook('${book.id}', '${book.title}')">Delete</button>
-                            </div>
-                        </td>
-                    `;
-                    booksTableBody.appendChild(row);
-                });
-                
-                if (snapshot.empty) {
-                    booksTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No books found. Add your first book!</td></tr>';
-                }
-                
-            } catch (error) {
-                console.error('Error loading books:', error);
-                booksTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--accent-color);">Error loading books. Please try again.</td></tr>';
-            } finally {
-                booksLoading.style.display = 'none';
+                row.innerHTML = `
+                    <td>${book.barcode}</td>
+                    <td>${book.title}</td>
+                    <td>${book.author}</td>
+                    <td>${book.category || 'Uncategorized'}</td>
+                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="action-btn edit" onclick="editBook('${book.id}')">Edit</button>
+                            <button class="action-btn delete" onclick="deleteBook('${book.id}', '${book.title}')">Delete</button>
+                        </div>
+                    </td>
+                `;
+                booksTableBody.appendChild(row);
+            });
+            
+            if (books.length === 0) {
+                booksTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No books found. Add your first book!</td></tr>';
             }
+            
+            booksLoading.style.display = 'none';
         }
 
         // Barcode Scanner Handling
@@ -1556,8 +1621,6 @@
             if (confirm(`Are you sure you want to delete "${bookTitle}"?`)) {
                 db.collection('books').doc(bookId).delete()
                     .then(() => {
-                        loadBooks();
-                        loadDashboardData();
                         alert('Book deleted successfully.');
                     })
                     .catch(error => {
@@ -1608,11 +1671,9 @@
                     showSuccess(bookModalError, 'Book added successfully!');
                 }
                 
-                // Close modal and refresh
+                // Close modal
                 setTimeout(() => {
                     bookModal.style.display = 'none';
-                    loadBooks();
-                    loadDashboardData();
                 }, 1500);
                 
             } catch (error) {
@@ -1759,73 +1820,53 @@
                 bookTitleInput.value = '';
                 rentBookBtn.disabled = true;
                 
-                // Refresh data
-                loadDashboardData();
-                loadActiveRentals();
-                loadBooks();
-                
             } catch (error) {
                 console.error('Error renting book:', error);
                 showError(rentError, 'Error renting book. Please try again.');
             }
         });
 
-        // Load Active Rentals
-        async function loadActiveRentals() {
-            try {
-                const snapshot = await db.collection('rentals')
-                    .where('status', '==', 'active')
-                    .orderBy('dueDate', 'asc')
-                    .get();
+        // Render active rentals
+        function renderActiveRentals() {
+            activeRentalsBody.innerHTML = '';
+            
+            const activeRentals = rentals.filter(rental => rental.status === 'active');
+            
+            activeRentals.forEach(rental => {
+                const row = document.createElement('tr');
                 
-                activeRentalsBody.innerHTML = '';
-                snapshot.forEach(doc => {
-                    const rental = doc.data();
-                    const row = document.createElement('tr');
-                    
-                    const dueDate = rental.dueDate.toDate();
-                    const today = new Date();
-                    const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-                    const daysLeftText = daysLeft > 0 ? `${daysLeft} days` : 'Overdue';
-                    const daysLeftClass = daysLeft > 0 ? (daysLeft <= 3 ? 'status-overdue' : '') : 'status-overdue';
-                    
-                    row.innerHTML = `
-                        <td>${rental.admissionNumber}</td>
-                        <td>${rental.bookTitle}</td>
-                        <td>${formatDate(rental.rentDate)}</td>
-                        <td>${formatDate(rental.dueDate)}</td>
-                        <td><span class="${daysLeftClass}">${daysLeftText}</span></td>
-                        <td>
-                            <button class="action-btn edit" onclick="prepareReturn('${doc.id}')">Return</button>
-                        </td>
-                    `;
-                    activeRentalsBody.appendChild(row);
-                });
+                const dueDate = rental.dueDate.toDate();
+                const today = new Date();
+                const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+                const daysLeftText = daysLeft > 0 ? `${daysLeft} days` : 'Overdue';
+                const daysLeftClass = daysLeft > 0 ? (daysLeft <= 3 ? 'status-overdue' : '') : 'status-overdue';
                 
-                if (snapshot.empty) {
-                    activeRentalsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No active rentals found</td></tr>';
-                }
-                
-            } catch (error) {
-                console.error('Error loading active rentals:', error);
-                activeRentalsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--accent-color);">Error loading rentals</td></tr>';
+                row.innerHTML = `
+                    <td>${rental.admissionNumber}</td>
+                    <td>${rental.bookTitle}</td>
+                    <td>${formatDate(rental.rentDate)}</td>
+                    <td>${formatDate(rental.dueDate)}</td>
+                    <td><span class="${daysLeftClass}">${daysLeftText}</span></td>
+                    <td>
+                        <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button>
+                    </td>
+                `;
+                activeRentalsBody.appendChild(row);
+            });
+            
+            if (activeRentals.length === 0) {
+                activeRentalsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No active rentals found</td></tr>';
             }
         }
 
-        // Load Overdue Books
-        async function loadOverdueBooks() {
-            try {
-                const snapshot = await db.collection('rentals')
-                    .where('status', '==', 'active')
-                    .orderBy('dueDate', 'asc')
-                    .get();
-                
-                overdueTableBody.innerHTML = '';
-                const today = new Date();
-                let overdueCount = 0;
-                
-                snapshot.forEach(doc => {
-                    const rental = doc.data();
+        // Render overdue books
+        function renderOverdueBooks() {
+            overdueTableBody.innerHTML = '';
+            const today = new Date();
+            let overdueCount = 0;
+            
+            rentals.forEach(rental => {
+                if (rental.status === 'active') {
                     const dueDate = rental.dueDate.toDate();
                     
                     if (dueDate < today) {
@@ -1840,20 +1881,16 @@
                             <td>${formatDate(rental.dueDate)}</td>
                             <td><span class="status-overdue">${daysOverdue} days</span></td>
                             <td>
-                                <button class="action-btn edit" onclick="prepareReturn('${doc.id}')">Return</button>
+                                <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button>
                             </td>
                         `;
                         overdueTableBody.appendChild(row);
                     }
-                });
-                
-                if (overdueCount === 0) {
-                    overdueTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No overdue books found</td></tr>';
                 }
-                
-            } catch (error) {
-                console.error('Error loading overdue books:', error);
-                overdueTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px; color: var(--accent-color);">Error loading overdue books</td></tr>';
+            });
+            
+            if (overdueCount === 0) {
+                overdueTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No overdue books found</td></tr>';
             }
         }
 
@@ -1954,11 +1991,6 @@
                 // Close modal and refresh data
                 setTimeout(() => {
                     returnModal.style.display = 'none';
-                    loadDashboardData();
-                    loadActiveRentals();
-                    loadOverdueBooks();
-                    loadBooks();
-                    
                     // Clear return form
                     returnBarcodeInput.value = '';
                     returnAdmissionInput.value = '';
@@ -1993,7 +2025,7 @@
         // Load Reports
         async function loadReports() {
             try {
-                // Load all data
+                // Load fresh data for reports
                 const booksSnapshot = await db.collection('books').get();
                 const usersSnapshot = await db.collection('users').get();
                 const rentalsSnapshot = await db.collection('rentals').get();
