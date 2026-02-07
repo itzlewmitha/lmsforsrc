@@ -783,12 +783,29 @@
                     </div>
                 </section>
                 
-                <!-- Manage Books Section -->
-                <section id="booksSection" class="section">
-                    <div class="section-header">
-                        <h3>Manage Books</h3>
-                        <button id="addBookBtn" class="btn">Add New Book</button>
-                    </div>
+                <!-- Replace the current section-header in Books Section with this: -->
+<div class="section-header">
+    <div>
+        <h3>Manage Books</h3>
+        <div style="display: flex; gap: 15px; margin-top: 10px; align-items: center;">
+            <div style="position: relative; flex: 1; max-width: 400px;">
+                <i class="fas fa-search" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #666;"></i>
+                <input type="text" id="bookSearchInput" placeholder="Search books by title, author, barcode, or category..." 
+                       style="padding: 10px 15px 10px 40px; width: 100%; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+            </div>
+            <div>
+                <select id="bookStatusFilter" style="padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                    <option value="all">All Status</option>
+                    <option value="available">Available</option>
+                    <option value="rented">Rented</option>
+                    <option value="damaged">Damaged</option>
+                    <option value="lost">Lost</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <button id="addBookBtn" class="btn">Add New Book</button>
+</div>
                     
                     <!-- Books Table -->
                     <div class="table-container">
