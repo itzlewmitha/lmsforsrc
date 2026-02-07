@@ -1632,8 +1632,6 @@
         // Add scanner button to modal if it doesn't exist
         if (!document.getElementById('scannerBtnInModal')) {
             const scannerBtn = document.createElement('button');
-            scannerBtn.id = 'scannerBtnInModal';
-            scannerBtn.type = 'button';
             scannerBtn.className = 'btn';
             scannerBtn.innerHTML = '<i class="fas fa-camera"></i> Scan Barcode';
             scannerBtn.style.marginTop = '10px';
@@ -2461,105 +2459,8 @@
         }, 3000);
     }
 
-    // ========== SIMPLE MOBILE SCANNER FALLBACK ==========
-    function setupMobileScannerFallback() {
-        // Add scan buttons to all barcode inputs
-        const barcodeInputs = [modalBarcode, bookBarcodeInput, returnBarcodeInput];
-        
-        barcodeInputs.forEach((input, index) => {
-            if (input && input.parentNode) {
-                // Check if button already exists
-                if (!input.parentNode.querySelector('.mobile-scan-btn')) {
-                    const contexts = ['addBook', 'rentBook', 'returnBook'];
-                    const scanBtn = document.createElement('button');
-                    scanBtn.type = 'button';
-                    scanBtn.className = 'btn mobile-scan-btn';
-                    scanBtn.innerHTML = '<i class="fas fa-camera"></i> Scan';
-                    scanBtn.style.marginLeft = '10px';
-                    scanBtn.style.marginTop = index === 0 ? '5px' : '0';
-                    scanBtn.onclick = () => openSimpleMobileScanner(contexts[index]);
-                    input.parentNode.appendChild(scanBtn);
-                }
-            }
-        });
-    }
+    
 
-    function openSimpleMobileScanner(context) {
-        currentScannerContext = context;
-        
-        // Create simple scanner UI
-        const scannerHTML = `
-            <div id="simpleScanner" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; padding: 20px;">
-                <button onclick="closeSimpleScanner()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
-                <h3>📱 Scan Barcode</h3>
-                <p>Use your phone's camera to scan:</p>
-                
-                <div style="margin: 30px 0;">
-                    <input type="text" 
-                           id="cameraBarcodeInput" 
-                           style="font-size: 18px; padding: 15px; width: 100%; text-align: center;"
-                           placeholder="Tap here, then point camera at barcode"
-                           inputmode="numeric">
-                    <p style="color: #666; font-size: 14px; margin-top: 10px;">
-                        On mobile: This will open your camera for scanning
-                    </p>
-                </div>
-                
-                <button onclick="processSimpleBarcode()" class="btn" style="width: 100%; padding: 15px; font-size: 16px;">Use Barcode</button>
-                
-                <div style="margin-top: 30px; text-align: center;">
-                    <p><strong>OR</strong></p>
-                    <input type="text" 
-                           id="manualSimpleBarcode" 
-                           placeholder="Enter barcode manually"
-                           style="padding: 12px; width: 100%; margin-bottom: 10px;">
-                    <button onclick="processManualBarcode()" class="btn">Enter Manually</button>
-                </div>
-            </div>
-        `;
-        
-        if (!document.getElementById('simpleScanner')) {
-            document.body.insertAdjacentHTML('beforeend', scannerHTML);
-        } else {
-            document.getElementById('simpleScanner').style.display = 'block';
-        }
-        
-        // Focus the input to trigger mobile keyboard with camera option
-        setTimeout(() => {
-            const input = document.getElementById('cameraBarcodeInput');
-            if (input) {
-                input.focus();
-                input.select();
-            }
-        }, 500);
-    }
-
-    window.closeSimpleScanner = function() {
-        const scanner = document.getElementById('simpleScanner');
-        if (scanner) {
-            scanner.style.display = 'none';
-        }
-    };
-
-    window.processSimpleBarcode = function() {
-        const input = document.getElementById('cameraBarcodeInput');
-        if (input && input.value.trim()) {
-            useDetectedBarcode(input.value.trim());
-            closeSimpleScanner();
-        } else {
-            alert('Please scan or enter a barcode');
-        }
-    };
-
-    window.processManualBarcode = function() {
-        const input = document.getElementById('manualSimpleBarcode');
-        if (input && input.value.trim()) {
-            useDetectedBarcode(input.value.trim());
-            closeSimpleScanner();
-        } else {
-            alert('Please enter a barcode');
-        }
-    };
 
     // ========== INITIALIZATION ==========
     // Set default dates
