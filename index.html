@@ -22,7 +22,7 @@
         }
 
         :root {
-            --primary-color: #2c3e50;
+            --primary-color: #1a5276;
             --secondary-color: #3498db;
             --accent-color: #e74c3c;
             --success-color: #27ae60;
@@ -44,7 +44,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+            background: linear-gradient(135deg, #1a5276 0%, #3498db 100%);
         }
 
         .login-box {
@@ -520,37 +520,32 @@
             color: var(--primary-color);
         }
 
-        /* Barcode Scanner UI */
-        .barcode-scanner {
-            background-color: white;
-            border: 2px dashed #ddd;
-            border-radius: 10px;
-            padding: 30px;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-
-        .barcode-scanner.active {
-            border-color: var(--secondary-color);
-            background-color: #f0f7ff;
-        }
-
-        .barcode-input {
-            font-size: 18px;
-            padding: 15px;
+        /* Barcode Scanner Styles */
+        .scanner-container {
+            position: relative;
             width: 100%;
-            max-width: 400px;
-            text-align: center;
-            border: 2px solid var(--secondary-color);
-            border-radius: 5px;
-            margin: 20px 0;
-            letter-spacing: 2px;
+            max-width: 500px;
+            margin: 0 auto;
+            background: black;
+            border-radius: 10px;
+            overflow: hidden;
         }
 
-        .scanner-instruction {
-            color: #666;
-            font-size: 14px;
-            margin-top: 10px;
+        .scanner-video {
+            width: 100%;
+            transform: scaleX(-1);
+        }
+
+        .scanner-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
         }
 
         /* Loading Spinner */
@@ -573,6 +568,13 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        /* Mobile Scanner Button */
+        .mobile-scan-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
         }
 
         /* Responsive */
@@ -626,6 +628,31 @@
                 display: block;
                 overflow-x: auto;
             }
+            
+            .scanner-container {
+                height: 300px;
+            }
+            
+            .scanner-video {
+                height: 100%;
+                object-fit: cover;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .login-box {
+                padding: 20px;
+                margin: 15px;
+            }
+            
+            .content-area {
+                padding: 15px;
+            }
+            
+            .modal-content {
+                padding: 20px;
+                width: 95%;
+            }
         }
     </style>
 </head>
@@ -660,7 +687,7 @@
     <div id="dashboardPage" class="dashboard-container">
         <!-- Header -->
         <header class="header">
-            <h2><i class="fas fa-book"></i> School Library Management System</h2>
+            <h2><i class="fas fa-book"></i> Rahula School Library System</h2>
             <div class="user-info">
                 <span class="user-email" id="userEmail"></span>
                 <button id="logoutBtn" class="logout-btn">Logout</button>
@@ -761,14 +788,6 @@
                     <div class="section-header">
                         <h3>Manage Books</h3>
                         <button id="addBookBtn" class="btn">Add New Book</button>
-                    </div>
-                    
-                    <!-- Barcode Scanner -->
-                    <div class="barcode-scanner" id="barcodeScanner">
-                        <h4><i class="fas fa-barcode"></i> Barcode Scanner Ready</h4>
-                        <p class="scanner-instruction">Scan a book barcode or manually enter below</p>
-                        <input type="text" id="barcodeInput" class="barcode-input" placeholder="Scan barcode here" maxlength="20">
-                        <p class="scanner-instruction">Press Enter after scanning</p>
                     </div>
                     
                     <!-- Books Table -->
@@ -1124,1049 +1143,1464 @@
         </div>
     </div>
     
+    <!-- Barcode Scanner Modal -->
+    <div id="barcodeScannerModal" class="modal">
+        <div class="modal-content" style="max-width: 95%; max-height: 95vh;">
+            <button class="modal-close" id="closeScannerModal">&times;</button>
+            <div class="modal-header">
+                <h3>📱 Scan Book Barcode</h3>
+                <p>Point your camera at the book barcode</p>
+            </div>
+            
+            <div style="text-align: center; margin: 20px 0;">
+                <select id="cameraSelect" style="padding: 10px; margin-bottom: 15px; width: 100%; max-width: 300px;">
+                    <option value="">Select Camera...</option>
+                </select>
+                
+                <div style="position: relative;">
+                    <div class="scanner-container">
+                        <video id="scanner-video" class="scanner-video"></video>
+                        <div id="scanner-overlay" class="scanner-overlay"></div>
+                    </div>
+                    
+                    <div id="scanner-result" style="margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; display: none;">
+                        <h4>✅ Barcode Detected!</h4>
+                        <p><strong>Code:</strong> <span id="detected-barcode"></span></p>
+                        <button id="useBarcodeBtn" class="btn" style="margin: 10px 5px;">Use This Barcode</button>
+                        <button id="scanAgainBtn" class="btn" style="background: #6c757d; margin: 10px 5px;">Scan Again</button>
+                    </div>
+                    
+                    <div id="manual-input" style="margin-top: 20px;">
+                        <input type="text" id="manualBarcode" placeholder="Or enter barcode manually" 
+                               style="padding: 12px; width: 100%; max-width: 300px; margin-bottom: 10px;">
+                        <button id="manualSubmitBtn" class="btn">Enter Manually</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 20px; color: #666; font-size: 14px;">
+                <p>💡 <strong>Tips:</strong></p>
+                <ul style="text-align: left; display: inline-block; margin: 0;">
+                    <li>Ensure good lighting</li>
+                    <li>Hold steady 6-12 inches from barcode</li>
+                    <li>Align barcode within the frame</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    
     <!-- JavaScript -->
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyCZ2BxgOgJeXPkr3G8DexJ7bjnTyd-kUOA",
-            authDomain: "lmsforsrc.firebaseapp.com",
-            projectId: "lmsforsrc",
-            storageBucket: "lmsforsrc.firebasestorage.app",
-            messagingSenderId: "53237902015",
-            appId: "1:53237902015:web:e4d304974484a04185b40a"
-        };
+    // Firebase Configuration
+    const firebaseConfig = {
+        apiKey: "AIzaSyCZ2BxgOgJeXPkr3G8DexJ7bjnTyd-kUOA",
+        authDomain: "lmsforsrc.firebaseapp.com",
+        projectId: "lmsforsrc",
+        storageBucket: "lmsforsrc.firebasestorage.app",
+        messagingSenderId: "53237902015",
+        appId: "1:53237902015:web:e4d304974484a04185b40a"
+    };
 
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
 
-        // DOM Elements
-        const loginPage = document.getElementById('loginPage');
-        const dashboardPage = document.getElementById('dashboardPage');
-        const loginBtn = document.getElementById('loginBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const loginError = document.getElementById('loginError');
-        const userEmail = document.getElementById('userEmail');
-        const currentDate = document.getElementById('currentDate');
-        
-        // Navigation
-        const navLinks = document.querySelectorAll('.sidebar-nav a');
-        const sections = document.querySelectorAll('.section');
-        
-        // Dashboard Elements
-        const totalBooksEl = document.getElementById('totalBooks');
-        const rentedBooksEl = document.getElementById('rentedBooks');
-        const overdueBooksEl = document.getElementById('overdueBooks');
-        const registeredUsersEl = document.getElementById('registeredUsers');
-        const recentRentalsBody = document.getElementById('recentRentalsBody');
-        
-        // Books Management
-        const booksTableBody = document.getElementById('booksTableBody');
-        const barcodeInput = document.getElementById('barcodeInput');
-        const booksLoading = document.getElementById('booksLoading');
-        const addBookBtn = document.getElementById('addBookBtn');
-        const bookModal = document.getElementById('bookModal');
-        const closeBookModal = document.getElementById('closeBookModal');
-        const cancelBookBtn = document.getElementById('cancelBookBtn');
-        const bookForm = document.getElementById('bookForm');
-        const modalTitle = document.getElementById('modalTitle');
-        const modalBarcode = document.getElementById('modalBarcode');
-        const modalTitleInput = document.getElementById('modalTitleInput');
-        const modalAuthor = document.getElementById('modalAuthor');
-        const modalIsbn = document.getElementById('modalIsbn');
-        const modalPublisher = document.getElementById('modalPublisher');
-        const modalYear = document.getElementById('modalYear');
-        const modalCategory = document.getElementById('modalCategory');
-        const modalStatus = document.getElementById('modalStatus');
-        const saveBookBtn = document.getElementById('saveBookBtn');
-        const bookModalError = document.getElementById('bookModalError');
-        
-        // Rent Book Elements
-        const admissionNumberInput = document.getElementById('admissionNumber');
-        const userNameInput = document.getElementById('userName');
-        const bookBarcodeInput = document.getElementById('bookBarcode');
-        const bookTitleInput = document.getElementById('bookTitle');
-        const rentDateInput = document.getElementById('rentDate');
-        const dueDateInput = document.getElementById('dueDate');
-        const checkUserBtn = document.getElementById('checkUserBtn');
-        const checkBookBtn = document.getElementById('checkBookBtn');
-        const rentBookBtn = document.getElementById('rentBookBtn');
-        const rentError = document.getElementById('rentError');
-        const rentSuccess = document.getElementById('rentSuccess');
-        const activeRentalsBody = document.getElementById('activeRentalsBody');
-        
-        // Returns & Overdue
-        const returnBarcodeInput = document.getElementById('returnBarcode');
-        const returnAdmissionInput = document.getElementById('returnAdmission');
-        const checkReturnBtn = document.getElementById('checkReturnBtn');
-        const returnBookBtn = document.getElementById('returnBookBtn');
-        const returnError = document.getElementById('returnError');
-        const returnSuccess = document.getElementById('returnSuccess');
-        const overdueTableBody = document.getElementById('overdueTableBody');
-        
-        // Return Modal
-        const returnModal = document.getElementById('returnModal');
-        const closeReturnModal = document.getElementById('closeReturnModal');
-        const cancelReturnBtn = document.getElementById('cancelReturnBtn');
-        const confirmReturnBtn = document.getElementById('confirmReturnBtn');
-        const confirmUserName = document.getElementById('confirmUserName');
-        const confirmBookTitle = document.getElementById('confirmBookTitle');
-        const confirmRentDate = document.getElementById('confirmRentDate');
-        const confirmDueDate = document.getElementById('confirmDueDate');
-        const confirmDaysOverdue = document.getElementById('confirmDaysOverdue');
-        const returnModalError = document.getElementById('returnModalError');
-        
-        // Reports
-        const refreshReportsBtn = document.getElementById('refreshReportsBtn');
-        const reportTotalBooks = document.getElementById('reportTotalBooks');
-        const availableBooks = document.getElementById('availableBooks');
-        const reportRentedBooks = document.getElementById('reportRentedBooks');
-        const activeUsers = document.getElementById('activeUsers');
-        const categoryTableBody = document.getElementById('categoryTableBody');
-        const popularBooksBody = document.getElementById('popularBooksBody');
-        
-        // Global Variables
-        let currentBookToEdit = null;
-        let currentRentalToReturn = null;
-        let books = [];
-        let users = [];
-        let rentals = [];
-        let booksUnsubscribe = null;
-        let usersUnsubscribe = null;
-        let rentalsUnsubscribe = null;
+    // DOM Elements
+    const loginPage = document.getElementById('loginPage');
+    const dashboardPage = document.getElementById('dashboardPage');
+    const loginBtn = document.getElementById('loginBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginError = document.getElementById('loginError');
+    const userEmail = document.getElementById('userEmail');
+    const currentDate = document.getElementById('currentDate');
+    
+    // Navigation
+    const navLinks = document.querySelectorAll('.sidebar-nav a');
+    const sections = document.querySelectorAll('.section');
+    
+    // Dashboard Elements
+    const totalBooksEl = document.getElementById('totalBooks');
+    const rentedBooksEl = document.getElementById('rentedBooks');
+    const overdueBooksEl = document.getElementById('overdueBooks');
+    const registeredUsersEl = document.getElementById('registeredUsers');
+    const recentRentalsBody = document.getElementById('recentRentalsBody');
+    
+    // Books Management
+    const booksTableBody = document.getElementById('booksTableBody');
+    const booksLoading = document.getElementById('booksLoading');
+    const addBookBtn = document.getElementById('addBookBtn');
+    const bookModal = document.getElementById('bookModal');
+    const closeBookModal = document.getElementById('closeBookModal');
+    const cancelBookBtn = document.getElementById('cancelBookBtn');
+    const bookForm = document.getElementById('bookForm');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBarcode = document.getElementById('modalBarcode');
+    const modalTitleInput = document.getElementById('modalTitleInput');
+    const modalAuthor = document.getElementById('modalAuthor');
+    const modalIsbn = document.getElementById('modalIsbn');
+    const modalPublisher = document.getElementById('modalPublisher');
+    const modalYear = document.getElementById('modalYear');
+    const modalCategory = document.getElementById('modalCategory');
+    const modalStatus = document.getElementById('modalStatus');
+    const saveBookBtn = document.getElementById('saveBookBtn');
+    const bookModalError = document.getElementById('bookModalError');
+    
+    // Rent Book Elements
+    const admissionNumberInput = document.getElementById('admissionNumber');
+    const userNameInput = document.getElementById('userName');
+    const bookBarcodeInput = document.getElementById('bookBarcode');
+    const bookTitleInput = document.getElementById('bookTitle');
+    const rentDateInput = document.getElementById('rentDate');
+    const dueDateInput = document.getElementById('dueDate');
+    const checkUserBtn = document.getElementById('checkUserBtn');
+    const checkBookBtn = document.getElementById('checkBookBtn');
+    const rentBookBtn = document.getElementById('rentBookBtn');
+    const rentError = document.getElementById('rentError');
+    const rentSuccess = document.getElementById('rentSuccess');
+    const activeRentalsBody = document.getElementById('activeRentalsBody');
+    
+    // Returns & Overdue
+    const returnBarcodeInput = document.getElementById('returnBarcode');
+    const returnAdmissionInput = document.getElementById('returnAdmission');
+    const checkReturnBtn = document.getElementById('checkReturnBtn');
+    const returnBookBtn = document.getElementById('returnBookBtn');
+    const returnError = document.getElementById('returnError');
+    const returnSuccess = document.getElementById('returnSuccess');
+    const overdueTableBody = document.getElementById('overdueTableBody');
+    
+    // Return Modal
+    const returnModal = document.getElementById('returnModal');
+    const closeReturnModal = document.getElementById('closeReturnModal');
+    const cancelReturnBtn = document.getElementById('cancelReturnBtn');
+    const confirmReturnBtn = document.getElementById('confirmReturnBtn');
+    const confirmUserName = document.getElementById('confirmUserName');
+    const confirmBookTitle = document.getElementById('confirmBookTitle');
+    const confirmRentDate = document.getElementById('confirmRentDate');
+    const confirmDueDate = document.getElementById('confirmDueDate');
+    const confirmDaysOverdue = document.getElementById('confirmDaysOverdue');
+    const returnModalError = document.getElementById('returnModalError');
+    
+    // Reports
+    const refreshReportsBtn = document.getElementById('refreshReportsBtn');
+    const reportTotalBooks = document.getElementById('reportTotalBooks');
+    const availableBooks = document.getElementById('availableBooks');
+    const reportRentedBooks = document.getElementById('reportRentedBooks');
+    const activeUsers = document.getElementById('activeUsers');
+    const categoryTableBody = document.getElementById('categoryTableBody');
+    const popularBooksBody = document.getElementById('popularBooksBody');
+    
+    // Barcode Scanner Elements
+    const barcodeScannerModal = document.getElementById('barcodeScannerModal');
+    const closeScannerModal = document.getElementById('closeScannerModal');
+    const cameraSelect = document.getElementById('cameraSelect');
+    const scannerVideo = document.getElementById('scanner-video');
+    const scannerResult = document.getElementById('scanner-result');
+    const detectedBarcodeSpan = document.getElementById('detected-barcode');
+    const useBarcodeBtn = document.getElementById('useBarcodeBtn');
+    const scanAgainBtn = document.getElementById('scanAgainBtn');
+    const manualBarcodeInput = document.getElementById('manualBarcode');
+    const manualSubmitBtn = document.getElementById('manualSubmitBtn');
+    
+    // Global Variables
+    let currentBookToEdit = null;
+    let currentRentalToReturn = null;
+    let books = [];
+    let users = [];
+    let rentals = [];
+    let booksUnsubscribe = null;
+    let usersUnsubscribe = null;
+    let rentalsUnsubscribe = null;
+    let scannerStream = null;
+    let barcodeDetector = null;
+    let currentScannerContext = 'addBook';
 
-        // Authentication State Observer
-        auth.onAuthStateChanged((user) => {
-            if (user) {
-                // Check if user is authorized
-                const allowedEmails = ['dev@anusrc.lk', 'admin@anusrc.lk', 'principal@anusrc.lk'];
-                if (allowedEmails.includes(user.email)) {
-                    // User is signed in and authorized
-                    showDashboard(user);
-                    setupRealtimeListeners();
-                } else {
-                    // User is signed in but not authorized
-                    auth.signOut();
-                    showError(loginError, 'You are not authorized to access this dashboard.');
-                }
+    // ========== AUTHENTICATION ==========
+    // Authentication State Observer
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+            // Check if user is authorized
+            const allowedEmails = ['dev@anusrc.lk', 'admin@anusrc.lk', 'principal@anusrc.lk'];
+            if (allowedEmails.includes(user.email)) {
+                // User is signed in and authorized
+                showDashboard(user);
+                setupRealtimeListeners();
             } else {
-                // User is signed out
-                showLogin();
-                cleanupRealtimeListeners();
+                // User is signed in but not authorized
+                auth.signOut();
+                showError(loginError, 'You are not authorized to access this dashboard.');
             }
+        } else {
+            // User is signed out
+            showLogin();
+            cleanupRealtimeListeners();
+        }
+    });
+
+    // Login Function
+    loginBtn.addEventListener('click', () => {
+        const email = emailInput.value.trim();
+        const password = passwordInput.value;
+        
+        if (!email || !password) {
+            showError(loginError, 'Please enter email and password.');
+            return;
+        }
+        
+        auth.signInWithEmailAndPassword(email, password)
+            .catch((error) => {
+                showError(loginError, error.message);
+            });
+    });
+
+    // Logout Function
+    logoutBtn.addEventListener('click', () => {
+        auth.signOut();
+    });
+
+    // ========== REALTIME LISTENERS ==========
+    function setupRealtimeListeners() {
+        // Listen to books collection
+        booksUnsubscribe = db.collection('books').onSnapshot((snapshot) => {
+            updateBooksData(snapshot);
+            loadDashboardData();
+        }, (error) => {
+            console.error('Books listener error:', error);
         });
 
-        // Setup real-time listeners
-        function setupRealtimeListeners() {
-            // Listen to books collection
-            booksUnsubscribe = db.collection('books').onSnapshot((snapshot) => {
-                updateBooksData(snapshot);
-                loadDashboardData(); // Refresh dashboard when books change
-            }, (error) => {
-                console.error('Books listener error:', error);
-            });
+        // Listen to users collection
+        usersUnsubscribe = db.collection('users').onSnapshot((snapshot) => {
+            updateUsersData(snapshot);
+            loadDashboardData();
+        }, (error) => {
+            console.error('Users listener error:', error);
+        });
 
-            // Listen to users collection
-            usersUnsubscribe = db.collection('users').onSnapshot((snapshot) => {
-                updateUsersData(snapshot);
-                loadDashboardData(); // Refresh dashboard when users change
-            }, (error) => {
-                console.error('Users listener error:', error);
-            });
+        // Listen to rentals collection
+        rentalsUnsubscribe = db.collection('rentals').onSnapshot((snapshot) => {
+            updateRentalsData(snapshot);
+            loadDashboardData();
+        }, (error) => {
+            console.error('Rentals listener error:', error);
+        });
+    }
 
-            // Listen to rentals collection
-            rentalsUnsubscribe = db.collection('rentals').onSnapshot((snapshot) => {
-                updateRentalsData(snapshot);
-                loadDashboardData(); // Refresh dashboard when rentals change
-            }, (error) => {
-                console.error('Rentals listener error:', error);
-            });
+    function cleanupRealtimeListeners() {
+        if (booksUnsubscribe) booksUnsubscribe();
+        if (usersUnsubscribe) usersUnsubscribe();
+        if (rentalsUnsubscribe) rentalsUnsubscribe();
+    }
+
+    function updateBooksData(snapshot) {
+        books = [];
+        snapshot.forEach(doc => {
+            books.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (document.getElementById('booksSection').classList.contains('active')) {
+            renderBooksTable();
         }
+    }
 
-        // Cleanup real-time listeners
-        function cleanupRealtimeListeners() {
-            if (booksUnsubscribe) booksUnsubscribe();
-            if (usersUnsubscribe) usersUnsubscribe();
-            if (rentalsUnsubscribe) rentalsUnsubscribe();
+    function updateUsersData(snapshot) {
+        users = [];
+        snapshot.forEach(doc => {
+            users.push({ id: doc.id, ...doc.data() });
+        });
+    }
+
+    function updateRentalsData(snapshot) {
+        rentals = [];
+        snapshot.forEach(doc => {
+            rentals.push({ id: doc.id, ...doc.data() });
+        });
+        
+        if (document.getElementById('rentSection').classList.contains('active')) {
+            renderActiveRentals();
         }
+        if (document.getElementById('returnsSection').classList.contains('active')) {
+            renderOverdueBooks();
+        }
+    }
 
-        // Update books data
-        function updateBooksData(snapshot) {
-            books = [];
-            snapshot.forEach(doc => {
-                books.push({ id: doc.id, ...doc.data() });
+    // ========== NAVIGATION ==========
+    navLinks.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const target = link.getAttribute('href').substring(1);
+            
+            // Update active nav link
+            navLinks.forEach(l => l.classList.remove('active'));
+            link.classList.add('active');
+            
+            // Show target section
+            sections.forEach(section => {
+                section.classList.remove('active');
+                if (section.id === target + 'Section') {
+                    section.classList.add('active');
+                }
             });
             
-            // If we're on the books section, update the table
-            if (document.getElementById('booksSection').classList.contains('active')) {
+            // Load data for the section
+            if (target === 'dashboard') {
+                loadDashboardData();
+            } else if (target === 'books') {
                 renderBooksTable();
-            }
-        }
-
-        // Update users data
-        function updateUsersData(snapshot) {
-            users = [];
-            snapshot.forEach(doc => {
-                users.push({ id: doc.id, ...doc.data() });
-            });
-        }
-
-        // Update rentals data
-        function updateRentalsData(snapshot) {
-            rentals = [];
-            snapshot.forEach(doc => {
-                rentals.push({ id: doc.id, ...doc.data() });
-            });
-            
-            // Update relevant sections if active
-            if (document.getElementById('rentSection').classList.contains('active')) {
+            } else if (target === 'rent') {
                 renderActiveRentals();
-            }
-            if (document.getElementById('returnsSection').classList.contains('active')) {
+                // Set dates
+                const today = new Date().toISOString().split('T')[0];
+                rentDateInput.value = today;
+                const dueDate = new Date();
+                dueDate.setDate(dueDate.getDate() + 14);
+                dueDateInput.value = dueDate.toISOString().split('T')[0];
+            } else if (target === 'returns') {
                 renderOverdueBooks();
+            } else if (target === 'reports') {
+                loadReports();
             }
-        }
+        });
+    });
 
-        // Login Function
-        loginBtn.addEventListener('click', () => {
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
+    // ========== UTILITY FUNCTIONS ==========
+    function showLogin() {
+        loginPage.style.display = 'flex';
+        dashboardPage.style.display = 'none';
+        emailInput.value = '';
+        passwordInput.value = '';
+        loginError.style.display = 'none';
+    }
+
+    function showDashboard(user) {
+        loginPage.style.display = 'none';
+        dashboardPage.style.display = 'block';
+        userEmail.textContent = user.email;
+        
+        // Set current date
+        const now = new Date();
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        currentDate.textContent = now.toLocaleDateString('en-US', options);
+        
+        // Load initial data
+        loadDashboardData();
+        initBarcodeScanner();
+    }
+
+    function showError(element, message) {
+        element.textContent = message;
+        element.style.display = 'block';
+        setTimeout(() => {
+            element.style.display = 'none';
+        }, 5000);
+    }
+
+    function showSuccess(element, message) {
+        element.textContent = message;
+        element.style.display = 'block';
+        setTimeout(() => {
+            element.style.display = 'none';
+        }, 5000);
+    }
+
+    function formatDate(dateString) {
+        if (!dateString) return 'N/A';
+        const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
+        return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function daysBetween(date1, date2) {
+        const d1 = date1.toDate ? date1.toDate() : new Date(date1);
+        const d2 = date2.toDate ? date2.toDate() : new Date(date2);
+        const diffTime = Math.abs(d2 - d1);
+        return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
+    // ========== DASHBOARD FUNCTIONS ==========
+    async function loadDashboardData() {
+        try {
+            const totalBooks = books.length;
+            const rentedBooks = books.filter(book => book.status === 'rented').length;
+            const totalUsers = users.length;
             
-            if (!email || !password) {
-                showError(loginError, 'Please enter email and password.');
+            // Calculate overdue books
+            const today = new Date();
+            const overdueCount = rentals.filter(rental => 
+                rental.status === 'active' && 
+                rental.dueDate.toDate() < today
+            ).length;
+            
+            // Update UI
+            totalBooksEl.textContent = totalBooks;
+            rentedBooksEl.textContent = rentedBooks;
+            overdueBooksEl.textContent = overdueCount;
+            registeredUsersEl.textContent = totalUsers;
+            
+            // Update recent rentals table
+            renderRecentRentals();
+            
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+        }
+    }
+
+    function renderRecentRentals() {
+        recentRentalsBody.innerHTML = '';
+        
+        const recentRentals = rentals
+            .filter(rental => rental.status === 'active')
+            .sort((a, b) => b.rentDate.toDate() - a.rentDate.toDate())
+            .slice(0, 10);
+        
+        recentRentals.forEach(rental => {
+            const row = document.createElement('tr');
+            
+            const dueDate = rental.dueDate.toDate();
+            const isOverdue = dueDate < new Date();
+            const statusClass = isOverdue ? 'status-overdue' : 'status-rented';
+            const statusText = isOverdue ? 'Overdue' : 'Active';
+            
+            row.innerHTML = `
+                <td>${rental.admissionNumber}</td>
+                <td>${rental.bookTitle}</td>
+                <td>${formatDate(rental.rentDate)}</td>
+                <td>${formatDate(rental.dueDate)}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            `;
+            recentRentalsBody.appendChild(row);
+        });
+        
+        if (recentRentals.length === 0) {
+            recentRentalsBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;">No recent rentals found</td></tr>';
+        }
+    }
+
+    // ========== BOOKS MANAGEMENT ==========
+    function renderBooksTable() {
+        booksLoading.style.display = 'block';
+        booksTableBody.innerHTML = '';
+        
+        books.forEach(book => {
+            const row = document.createElement('tr');
+            const statusClass = `status-${book.status}`;
+            const statusText = book.status.charAt(0).toUpperCase() + book.status.slice(1);
+            
+            row.innerHTML = `
+                <td>${book.barcode}</td>
+                <td>${book.title}</td>
+                <td>${book.author}</td>
+                <td>${book.category || 'Uncategorized'}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="action-btn edit" onclick="editBook('${book.id}')">Edit</button>
+                        <button class="action-btn delete" onclick="deleteBook('${book.id}', '${book.title}')">Delete</button>
+                    </div>
+                </td>
+            `;
+            booksTableBody.appendChild(row);
+        });
+        
+        if (books.length === 0) {
+            booksTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No books found. Add your first book!</td></tr>';
+        }
+        
+        booksLoading.style.display = 'none';
+    }
+
+    // Add Book Modal
+    addBookBtn.addEventListener('click', () => {
+        openAddBookModal();
+    });
+
+    function openAddBookModal(barcode = '') {
+        currentBookToEdit = null;
+        modalTitle.textContent = 'Add New Book';
+        modalBarcode.value = barcode;
+        modalBarcode.readOnly = !!barcode;
+        modalTitleInput.value = '';
+        modalAuthor.value = '';
+        modalIsbn.value = '';
+        modalPublisher.value = '';
+        modalYear.value = new Date().getFullYear();
+        modalCategory.value = '';
+        modalStatus.value = 'available';
+        bookModalError.style.display = 'none';
+        bookModal.style.display = 'flex';
+        
+        // Add scanner button to modal if it doesn't exist
+        if (!document.getElementById('scannerBtnInModal')) {
+            const scannerBtn = document.createElement('button');
+            scannerBtn.id = 'scannerBtnInModal';
+            scannerBtn.type = 'button';
+            scannerBtn.className = 'btn';
+            scannerBtn.innerHTML = '<i class="fas fa-camera"></i> Scan Barcode';
+            scannerBtn.style.marginTop = '10px';
+            scannerBtn.style.width = '100%';
+            scannerBtn.onclick = () => openBarcodeScanner('addBook');
+            modalBarcode.parentNode.appendChild(scannerBtn);
+        }
+    }
+
+    // Edit Book
+    window.editBook = async function(bookId) {
+        try {
+            const doc = await db.collection('books').doc(bookId).get();
+            if (doc.exists) {
+                const book = doc.data();
+                currentBookToEdit = bookId;
+                modalTitle.textContent = 'Edit Book';
+                modalBarcode.value = book.barcode;
+                modalBarcode.readOnly = true;
+                modalTitleInput.value = book.title;
+                modalAuthor.value = book.author;
+                modalIsbn.value = book.isbn || '';
+                modalPublisher.value = book.publisher || '';
+                modalYear.value = book.year || new Date().getFullYear();
+                modalCategory.value = book.category || '';
+                modalStatus.value = book.status || 'available';
+                bookModalError.style.display = 'none';
+                bookModal.style.display = 'flex';
+            }
+        } catch (error) {
+            console.error('Error loading book for edit:', error);
+            alert('Error loading book details.');
+        }
+    };
+
+    // Delete Book
+    window.deleteBook = function(bookId, bookTitle) {
+        if (confirm(`Are you sure you want to delete "${bookTitle}"?`)) {
+            db.collection('books').doc(bookId).delete()
+                .then(() => {
+                    alert('Book deleted successfully.');
+                })
+                .catch(error => {
+                    console.error('Error deleting book:', error);
+                    alert('Error deleting book. Please try again.');
+                });
+        }
+    };
+
+    // Save Book
+    bookForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const bookData = {
+            barcode: modalBarcode.value.trim(),
+            title: modalTitleInput.value.trim(),
+            author: modalAuthor.value.trim(),
+            isbn: modalIsbn.value.trim(),
+            publisher: modalPublisher.value.trim(),
+            year: parseInt(modalYear.value) || new Date().getFullYear(),
+            category: modalCategory.value,
+            status: modalStatus.value,
+            updatedAt: new Date().toISOString()
+        };
+        
+        // Validation
+        if (!bookData.barcode || !bookData.title || !bookData.author || !bookData.category) {
+            showError(bookModalError, 'Please fill in all required fields.');
+            return;
+        }
+        
+        try {
+            if (currentBookToEdit) {
+                // Update existing book
+                await db.collection('books').doc(currentBookToEdit).update(bookData);
+                showSuccess(bookModalError, 'Book updated successfully!');
+            } else {
+                // Check if book already exists
+                const existingBook = await db.collection('books').doc(bookData.barcode).get();
+                if (existingBook.exists) {
+                    showError(bookModalError, 'A book with this barcode already exists.');
+                    return;
+                }
+                
+                // Add new book
+                bookData.createdAt = new Date().toISOString();
+                await db.collection('books').doc(bookData.barcode).set(bookData);
+                showSuccess(bookModalError, 'Book added successfully!');
+                
+                // Try to fetch book details from ISBN
+                if (bookData.isbn) {
+                    fetchBookDetailsFromISBN(bookData.isbn);
+                }
+            }
+            
+            // Close modal
+            setTimeout(() => {
+                bookModal.style.display = 'none';
+            }, 1500);
+            
+        } catch (error) {
+            console.error('Error saving book:', error);
+            showError(bookModalError, 'Error saving book. Please try again.');
+        }
+    });
+
+    // Close Book Modal
+    closeBookModal.addEventListener('click', () => {
+        bookModal.style.display = 'none';
+    });
+
+    cancelBookBtn.addEventListener('click', () => {
+        bookModal.style.display = 'none';
+    });
+
+    // ========== RENT BOOK FUNCTIONS ==========
+    // Check User
+    checkUserBtn.addEventListener('click', async () => {
+        const admissionNumber = admissionNumberInput.value.trim();
+        if (!admissionNumber) {
+            showError(rentError, 'Please enter an admission number.');
+            return;
+        }
+        
+        try {
+            const doc = await db.collection('users').doc(admissionNumber).get();
+            if (doc.exists) {
+                const user = doc.data();
+                userNameInput.value = user.name;
+                showSuccess(rentError, `User found: ${user.name} (${user.role})`);
+            } else {
+                userNameInput.value = '';
+                showError(rentError, 'User not found. Please check the admission number.');
+            }
+        } catch (error) {
+            console.error('Error checking user:', error);
+            showError(rentError, 'Error checking user. Please try again.');
+        }
+    });
+
+    // Check Book
+    checkBookBtn.addEventListener('click', async () => {
+        const barcode = bookBarcodeInput.value.trim();
+        if (!barcode) {
+            showError(rentError, 'Please enter a book barcode.');
+            return;
+        }
+        
+        try {
+            const doc = await db.collection('books').doc(barcode).get();
+            if (doc.exists) {
+                const book = doc.data();
+                bookTitleInput.value = book.title;
+                
+                if (book.status !== 'available') {
+                    showError(rentError, `This book is not available. Current status: ${book.status}`);
+                    rentBookBtn.disabled = true;
+                } else {
+                    showSuccess(rentError, `Book found: ${book.title} by ${book.author}`);
+                    rentBookBtn.disabled = false;
+                }
+            } else {
+                bookTitleInput.value = '';
+                showError(rentError, 'Book not found. Please check the barcode.');
+                rentBookBtn.disabled = true;
+            }
+        } catch (error) {
+            console.error('Error checking book:', error);
+            showError(rentError, 'Error checking book. Please try again.');
+            rentBookBtn.disabled = true;
+        }
+    });
+
+    // Add scanner button to rent form barcode input
+    if (bookBarcodeInput && bookBarcodeInput.parentNode) {
+        const scanBtn = document.createElement('button');
+        scanBtn.type = 'button';
+        scanBtn.className = 'btn';
+        scanBtn.innerHTML = '<i class="fas fa-camera"></i> Scan';
+        scanBtn.style.marginLeft = '10px';
+        scanBtn.onclick = () => openBarcodeScanner('rentBook');
+        bookBarcodeInput.parentNode.appendChild(scanBtn);
+    }
+
+    // Rent Book
+    rentBookBtn.addEventListener('click', async () => {
+        const admissionNumber = admissionNumberInput.value.trim();
+        const barcode = bookBarcodeInput.value.trim();
+        const rentDate = rentDateInput.value;
+        const dueDate = dueDateInput.value;
+        
+        // Validation
+        if (!admissionNumber || !barcode || !rentDate || !dueDate) {
+            showError(rentError, 'Please fill in all required fields.');
+            return;
+        }
+        
+        if (!userNameInput.value) {
+            showError(rentError, 'Please check the user first.');
+            return;
+        }
+        
+        if (!bookTitleInput.value) {
+            showError(rentError, 'Please check the book first.');
+            return;
+        }
+        
+        try {
+            // Check if book is still available
+            const bookDoc = await db.collection('books').doc(barcode).get();
+            if (!bookDoc.exists || bookDoc.data().status !== 'available') {
+                showError(rentError, 'Book is no longer available for rent.');
                 return;
             }
             
-            auth.signInWithEmailAndPassword(email, password)
-                .catch((error) => {
-                    showError(loginError, error.message);
-                });
-        });
-
-        // Logout Function
-        logoutBtn.addEventListener('click', () => {
-            auth.signOut();
-        });
-
-        // Navigation
-        navLinks.forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const target = link.getAttribute('href').substring(1);
-                
-                // Update active nav link
-                navLinks.forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
-                
-                // Show target section
-                sections.forEach(section => {
-                    section.classList.remove('active');
-                    if (section.id === target + 'Section') {
-                        section.classList.add('active');
-                    }
-                });
-                
-                // Load data for the section
-                if (target === 'dashboard') {
-                    loadDashboardData();
-                } else if (target === 'books') {
-                    renderBooksTable();
-                } else if (target === 'rent') {
-                    renderActiveRentals();
-                    // Set today's date as default
-                    const today = new Date().toISOString().split('T')[0];
-                    rentDateInput.value = today;
-                    // Set due date 14 days from today
-                    const dueDate = new Date();
-                    dueDate.setDate(dueDate.getDate() + 14);
-                    dueDateInput.value = dueDate.toISOString().split('T')[0];
-                } else if (target === 'returns') {
-                    renderOverdueBooks();
-                } else if (target === 'reports') {
-                    loadReports();
-                }
-            });
-        });
-
-        // Show Login Page
-        function showLogin() {
-            loginPage.style.display = 'flex';
-            dashboardPage.style.display = 'none';
-            emailInput.value = '';
-            passwordInput.value = '';
-            loginError.style.display = 'none';
-        }
-
-        // Show Dashboard
-        function showDashboard(user) {
-            loginPage.style.display = 'none';
-            dashboardPage.style.display = 'block';
-            userEmail.textContent = user.email;
+            // Check if user already has this book rented
+            const existingRental = await db.collection('rentals')
+                .where('admissionNumber', '==', admissionNumber)
+                .where('barcode', '==', barcode)
+                .where('status', '==', 'active')
+                .get();
             
-            // Set current date
-            const now = new Date();
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            currentDate.textContent = now.toLocaleDateString('en-US', options);
-            
-            // Load initial data
-            loadDashboardData();
-        }
-
-        // Error Message Helper
-        function showError(element, message) {
-            element.textContent = message;
-            element.style.display = 'block';
-            setTimeout(() => {
-                element.style.display = 'none';
-            }, 5000);
-        }
-
-        // Success Message Helper
-        function showSuccess(element, message) {
-            element.textContent = message;
-            element.style.display = 'block';
-            setTimeout(() => {
-                element.style.display = 'none';
-            }, 5000);
-        }
-
-        // Format Date
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            const date = dateString.toDate ? dateString.toDate() : new Date(dateString);
-            return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-        }
-
-        // Calculate Days Between Dates
-        function daysBetween(date1, date2) {
-            const d1 = date1.toDate ? date1.toDate() : new Date(date1);
-            const d2 = date2.toDate ? date2.toDate() : new Date(date2);
-            const diffTime = Math.abs(d2 - d1);
-            return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        }
-
-        // Load Dashboard Data
-        async function loadDashboardData() {
-            try {
-                // Calculate stats from current data
-                const totalBooks = books.length;
-                const rentedBooks = books.filter(book => book.status === 'rented').length;
-                const totalUsers = users.length;
-                
-                // Calculate overdue books
-                const today = new Date();
-                const overdueCount = rentals.filter(rental => 
-                    rental.status === 'active' && 
-                    rental.dueDate.toDate() < today
-                ).length;
-                
-                // Update UI
-                totalBooksEl.textContent = totalBooks;
-                rentedBooksEl.textContent = rentedBooks;
-                overdueBooksEl.textContent = overdueCount;
-                registeredUsersEl.textContent = totalUsers;
-                
-                // Update recent rentals table
-                renderRecentRentals();
-                
-            } catch (error) {
-                console.error('Error loading dashboard data:', error);
-            }
-        }
-
-        // Render recent rentals
-        function renderRecentRentals() {
-            recentRentalsBody.innerHTML = '';
-            
-            // Get recent active rentals
-            const recentRentals = rentals
-                .filter(rental => rental.status === 'active')
-                .sort((a, b) => b.rentDate.toDate() - a.rentDate.toDate())
-                .slice(0, 10);
-            
-            recentRentals.forEach(rental => {
-                const row = document.createElement('tr');
-                
-                const dueDate = rental.dueDate.toDate();
-                const isOverdue = dueDate < new Date();
-                const statusClass = isOverdue ? 'status-overdue' : 'status-rented';
-                const statusText = isOverdue ? 'Overdue' : 'Active';
-                
-                row.innerHTML = `
-                    <td>${rental.admissionNumber}</td>
-                    <td>${rental.bookTitle}</td>
-                    <td>${formatDate(rental.rentDate)}</td>
-                    <td>${formatDate(rental.dueDate)}</td>
-                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                `;
-                recentRentalsBody.appendChild(row);
-            });
-            
-            if (recentRentals.length === 0) {
-                recentRentalsBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;">No recent rentals found</td></tr>';
-            }
-        }
-
-        // Render books table
-        function renderBooksTable() {
-            booksLoading.style.display = 'block';
-            booksTableBody.innerHTML = '';
-            
-            books.forEach(book => {
-                const row = document.createElement('tr');
-                const statusClass = `status-${book.status}`;
-                const statusText = book.status.charAt(0).toUpperCase() + book.status.slice(1);
-                
-                row.innerHTML = `
-                    <td>${book.barcode}</td>
-                    <td>${book.title}</td>
-                    <td>${book.author}</td>
-                    <td>${book.category || 'Uncategorized'}</td>
-                    <td><span class="status-badge ${statusClass}">${statusText}</span></td>
-                    <td>
-                        <div class="action-buttons">
-                            <button class="action-btn edit" onclick="editBook('${book.id}')">Edit</button>
-                            <button class="action-btn delete" onclick="deleteBook('${book.id}', '${book.title}')">Delete</button>
-                        </div>
-                    </td>
-                `;
-                booksTableBody.appendChild(row);
-            });
-            
-            if (books.length === 0) {
-                booksTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No books found. Add your first book!</td></tr>';
+            if (!existingRental.empty) {
+                showError(rentError, 'This user already has this book rented.');
+                return;
             }
             
-            booksLoading.style.display = 'none';
-        }
-
-        // Barcode Scanner Handling
-        barcodeInput.addEventListener('keyup', async (e) => {
-            if (e.key === 'Enter') {
-                const barcode = barcodeInput.value.trim();
-                if (barcode) {
-                    try {
-                        const doc = await db.collection('books').doc(barcode).get();
-                        if (doc.exists) {
-                            // Book exists, show details
-                            const book = doc.data();
-                            alert(`Book Found:\nTitle: ${book.title}\nAuthor: ${book.author}\nStatus: ${book.status}`);
-                        } else {
-                            // Book doesn't exist, offer to add it
-                            if (confirm(`Book with barcode "${barcode}" not found. Would you like to add it now?`)) {
-                                openAddBookModal(barcode);
-                            }
-                        }
-                    } catch (error) {
-                        console.error('Error checking barcode:', error);
-                        alert('Error checking barcode. Please try again.');
-                    }
-                }
-                barcodeInput.value = '';
-            }
-        });
-
-        // Add Book Modal
-        addBookBtn.addEventListener('click', () => {
-            openAddBookModal();
-        });
-
-        function openAddBookModal(barcode = '') {
-            currentBookToEdit = null;
-            modalTitle.textContent = 'Add New Book';
-            modalBarcode.value = barcode;
-            modalBarcode.readOnly = !!barcode;
-            modalTitleInput.value = '';
-            modalAuthor.value = '';
-            modalIsbn.value = '';
-            modalPublisher.value = '';
-            modalYear.value = new Date().getFullYear();
-            modalCategory.value = '';
-            modalStatus.value = 'available';
-            bookModalError.style.display = 'none';
-            bookModal.style.display = 'flex';
-        }
-
-        // Edit Book
-        window.editBook = async function(bookId) {
-            try {
-                const doc = await db.collection('books').doc(bookId).get();
-                if (doc.exists) {
-                    const book = doc.data();
-                    currentBookToEdit = bookId;
-                    modalTitle.textContent = 'Edit Book';
-                    modalBarcode.value = book.barcode;
-                    modalBarcode.readOnly = true;
-                    modalTitleInput.value = book.title;
-                    modalAuthor.value = book.author;
-                    modalIsbn.value = book.isbn || '';
-                    modalPublisher.value = book.publisher || '';
-                    modalYear.value = book.year || new Date().getFullYear();
-                    modalCategory.value = book.category || '';
-                    modalStatus.value = book.status || 'available';
-                    bookModalError.style.display = 'none';
-                    bookModal.style.display = 'flex';
-                }
-            } catch (error) {
-                console.error('Error loading book for edit:', error);
-                alert('Error loading book details.');
-            }
-        };
-
-        // Delete Book
-        window.deleteBook = function(bookId, bookTitle) {
-            if (confirm(`Are you sure you want to delete "${bookTitle}"?`)) {
-                db.collection('books').doc(bookId).delete()
-                    .then(() => {
-                        alert('Book deleted successfully.');
-                    })
-                    .catch(error => {
-                        console.error('Error deleting book:', error);
-                        alert('Error deleting book. Please try again.');
-                    });
-            }
-        };
-
-        // Save Book
-        bookForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const bookData = {
-                barcode: modalBarcode.value.trim(),
-                title: modalTitleInput.value.trim(),
-                author: modalAuthor.value.trim(),
-                isbn: modalIsbn.value.trim(),
-                publisher: modalPublisher.value.trim(),
-                year: parseInt(modalYear.value) || new Date().getFullYear(),
-                category: modalCategory.value,
-                status: modalStatus.value,
-                updatedAt: new Date().toISOString()
+            // Create rental record
+            const rentalData = {
+                admissionNumber: admissionNumber,
+                userName: userNameInput.value,
+                barcode: barcode,
+                bookTitle: bookTitleInput.value,
+                rentDate: new Date(rentDate),
+                dueDate: new Date(dueDate),
+                status: 'active',
+                createdAt: new Date().toISOString()
             };
             
-            // Validation
-            if (!bookData.barcode || !bookData.title || !bookData.author || !bookData.category) {
-                showError(bookModalError, 'Please fill in all required fields.');
-                return;
-            }
+            // Update book status
+            await db.collection('books').doc(barcode).update({
+                status: 'rented',
+                lastRented: new Date().toISOString()
+            });
             
-            try {
-                if (currentBookToEdit) {
-                    // Update existing book
-                    await db.collection('books').doc(currentBookToEdit).update(bookData);
-                    showSuccess(bookModalError, 'Book updated successfully!');
-                } else {
-                    // Check if book already exists
-                    const existingBook = await db.collection('books').doc(bookData.barcode).get();
-                    if (existingBook.exists) {
-                        showError(bookModalError, 'A book with this barcode already exists.');
-                        return;
-                    }
+            // Save rental
+            await db.collection('rentals').add(rentalData);
+            
+            // Show success and reset form
+            showSuccess(rentSuccess, 'Book rented successfully!');
+            admissionNumberInput.value = '';
+            userNameInput.value = '';
+            bookBarcodeInput.value = '';
+            bookTitleInput.value = '';
+            rentBookBtn.disabled = true;
+            
+        } catch (error) {
+            console.error('Error renting book:', error);
+            showError(rentError, 'Error renting book. Please try again.');
+        }
+    });
+
+    function renderActiveRentals() {
+        activeRentalsBody.innerHTML = '';
+        
+        const activeRentals = rentals.filter(rental => rental.status === 'active');
+        
+        activeRentals.forEach(rental => {
+            const row = document.createElement('tr');
+            
+            const dueDate = rental.dueDate.toDate();
+            const today = new Date();
+            const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
+            const daysLeftText = daysLeft > 0 ? `${daysLeft} days` : 'Overdue';
+            const daysLeftClass = daysLeft > 0 ? (daysLeft <= 3 ? 'status-overdue' : '') : 'status-overdue';
+            
+            row.innerHTML = `
+                <td>${rental.admissionNumber}</td>
+                <td>${rental.bookTitle}</td>
+                <td>${formatDate(rental.rentDate)}</td>
+                <td>${formatDate(rental.dueDate)}</td>
+                <td><span class="${daysLeftClass}">${daysLeftText}</span></td>
+                <td>
+                    <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button>
+                </td>
+            `;
+            activeRentalsBody.appendChild(row);
+        });
+        
+        if (activeRentals.length === 0) {
+            activeRentalsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No active rentals found</td></tr>';
+        }
+    }
+
+    // ========== RETURNS & OVERDUE ==========
+    function renderOverdueBooks() {
+        overdueTableBody.innerHTML = '';
+        const today = new Date();
+        let overdueCount = 0;
+        
+        rentals.forEach(rental => {
+            if (rental.status === 'active') {
+                const dueDate = rental.dueDate.toDate();
+                
+                if (dueDate < today) {
+                    overdueCount++;
+                    const daysOverdue = Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24));
                     
-                    // Add new book
-                    bookData.createdAt = new Date().toISOString();
-                    await db.collection('books').doc(bookData.barcode).set(bookData);
-                    showSuccess(bookModalError, 'Book added successfully!');
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${rental.admissionNumber}</td>
+                        <td>${rental.userName}</td>
+                        <td>${rental.bookTitle}</td>
+                        <td>${formatDate(rental.dueDate)}</td>
+                        <td><span class="status-overdue">${daysOverdue} days</span></td>
+                        <td>
+                            <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button>
+                        </td>
+                    `;
+                    overdueTableBody.appendChild(row);
                 }
-                
-                // Close modal
-                setTimeout(() => {
-                    bookModal.style.display = 'none';
-                }, 1500);
-                
-            } catch (error) {
-                console.error('Error saving book:', error);
-                showError(bookModalError, 'Error saving book. Please try again.');
             }
         });
+        
+        if (overdueCount === 0) {
+            overdueTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No overdue books found</td></tr>';
+        }
+    }
 
-        // Close Book Modal
-        closeBookModal.addEventListener('click', () => {
-            bookModal.style.display = 'none';
-        });
+    // Add scanner button to return form barcode input
+    if (returnBarcodeInput && returnBarcodeInput.parentNode) {
+        const scanBtn = document.createElement('button');
+        scanBtn.type = 'button';
+        scanBtn.className = 'btn';
+        scanBtn.innerHTML = '<i class="fas fa-camera"></i> Scan';
+        scanBtn.style.marginLeft = '10px';
+        scanBtn.onclick = () => openBarcodeScanner('returnBook');
+        returnBarcodeInput.parentNode.appendChild(scanBtn);
+    }
 
-        cancelBookBtn.addEventListener('click', () => {
-            bookModal.style.display = 'none';
-        });
-
-        // Check User
-        checkUserBtn.addEventListener('click', async () => {
-            const admissionNumber = admissionNumberInput.value.trim();
-            if (!admissionNumber) {
-                showError(rentError, 'Please enter an admission number.');
+    // Check Book for Return
+    checkReturnBtn.addEventListener('click', async () => {
+        const barcode = returnBarcodeInput.value.trim();
+        if (!barcode) {
+            showError(returnError, 'Please enter a book barcode.');
+            return;
+        }
+        
+        try {
+            // Find active rental for this book
+            const snapshot = await db.collection('rentals')
+                .where('barcode', '==', barcode)
+                .where('status', '==', 'active')
+                .get();
+            
+            if (snapshot.empty) {
+                showError(returnError, 'No active rental found for this book.');
+                returnAdmissionInput.value = '';
+                returnBookBtn.disabled = true;
                 return;
             }
             
-            try {
-                const doc = await db.collection('users').doc(admissionNumber).get();
-                if (doc.exists) {
-                    const user = doc.data();
-                    userNameInput.value = user.name;
-                    showSuccess(rentError, `User found: ${user.name} (${user.role})`);
-                } else {
-                    userNameInput.value = '';
-                    showError(rentError, 'User not found. Please check the admission number.');
-                }
-            } catch (error) {
-                console.error('Error checking user:', error);
-                showError(rentError, 'Error checking user. Please try again.');
-            }
-        });
+            // Get the rental
+            const doc = snapshot.docs[0];
+            const rental = doc.data();
+            currentRentalToReturn = doc.id;
+            
+            returnAdmissionInput.value = rental.admissionNumber;
+            showSuccess(returnError, `Book found! Rented by ${rental.userName}. Due date: ${formatDate(rental.dueDate)}`);
+            returnBookBtn.disabled = false;
+            
+        } catch (error) {
+            console.error('Error checking book for return:', error);
+            showError(returnError, 'Error checking book. Please try again.');
+            returnBookBtn.disabled = true;
+        }
+    });
 
-        // Check Book
-        checkBookBtn.addEventListener('click', async () => {
-            const barcode = bookBarcodeInput.value.trim();
-            if (!barcode) {
-                showError(rentError, 'Please enter a book barcode.');
-                return;
-            }
-            
-            try {
-                const doc = await db.collection('books').doc(barcode).get();
-                if (doc.exists) {
-                    const book = doc.data();
-                    bookTitleInput.value = book.title;
-                    
-                    if (book.status !== 'available') {
-                        showError(rentError, `This book is not available. Current status: ${book.status}`);
-                        rentBookBtn.disabled = true;
-                    } else {
-                        showSuccess(rentError, `Book found: ${book.title} by ${book.author}`);
-                        rentBookBtn.disabled = false;
-                    }
-                } else {
-                    bookTitleInput.value = '';
-                    showError(rentError, 'Book not found. Please check the barcode.');
-                    rentBookBtn.disabled = true;
-                }
-            } catch (error) {
-                console.error('Error checking book:', error);
-                showError(rentError, 'Error checking book. Please try again.');
-                rentBookBtn.disabled = true;
-            }
-        });
-
-        // Rent Book
-        rentBookBtn.addEventListener('click', async () => {
-            const admissionNumber = admissionNumberInput.value.trim();
-            const barcode = bookBarcodeInput.value.trim();
-            const rentDate = rentDateInput.value;
-            const dueDate = dueDateInput.value;
-            
-            // Validation
-            if (!admissionNumber || !barcode || !rentDate || !dueDate) {
-                showError(rentError, 'Please fill in all required fields.');
-                return;
-            }
-            
-            if (!userNameInput.value) {
-                showError(rentError, 'Please check the user first.');
-                return;
-            }
-            
-            if (!bookTitleInput.value) {
-                showError(rentError, 'Please check the book first.');
-                return;
-            }
-            
-            try {
-                // Check if book is still available
-                const bookDoc = await db.collection('books').doc(barcode).get();
-                if (!bookDoc.exists || bookDoc.data().status !== 'available') {
-                    showError(rentError, 'Book is no longer available for rent.');
-                    return;
-                }
+    // Prepare Return
+    window.prepareReturn = async function(rentalId) {
+        try {
+            const doc = await db.collection('rentals').doc(rentalId).get();
+            if (doc.exists) {
+                const rental = doc.data();
+                currentRentalToReturn = rentalId;
                 
-                // Check if user already has this book rented
-                const existingRental = await db.collection('rentals')
-                    .where('admissionNumber', '==', admissionNumber)
-                    .where('barcode', '==', barcode)
-                    .where('status', '==', 'active')
-                    .get();
-                
-                if (!existingRental.empty) {
-                    showError(rentError, 'This user already has this book rented.');
-                    return;
-                }
-                
-                // Create rental record
-                const rentalData = {
-                    admissionNumber: admissionNumber,
-                    userName: userNameInput.value,
-                    barcode: barcode,
-                    bookTitle: bookTitleInput.value,
-                    rentDate: new Date(rentDate),
-                    dueDate: new Date(dueDate),
-                    status: 'active',
-                    createdAt: new Date().toISOString()
-                };
-                
-                // Update book status
-                await db.collection('books').doc(barcode).update({
-                    status: 'rented',
-                    lastRented: new Date().toISOString()
-                });
-                
-                // Save rental
-                await db.collection('rentals').add(rentalData);
-                
-                // Show success and reset form
-                showSuccess(rentSuccess, 'Book rented successfully!');
-                admissionNumberInput.value = '';
-                userNameInput.value = '';
-                bookBarcodeInput.value = '';
-                bookTitleInput.value = '';
-                rentBookBtn.disabled = true;
-                
-            } catch (error) {
-                console.error('Error renting book:', error);
-                showError(rentError, 'Error renting book. Please try again.');
-            }
-        });
-
-        // Render active rentals
-        function renderActiveRentals() {
-            activeRentalsBody.innerHTML = '';
-            
-            const activeRentals = rentals.filter(rental => rental.status === 'active');
-            
-            activeRentals.forEach(rental => {
-                const row = document.createElement('tr');
-                
+                // Calculate days overdue
                 const dueDate = rental.dueDate.toDate();
                 const today = new Date();
-                const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
-                const daysLeftText = daysLeft > 0 ? `${daysLeft} days` : 'Overdue';
-                const daysLeftClass = daysLeft > 0 ? (daysLeft <= 3 ? 'status-overdue' : '') : 'status-overdue';
+                const daysOverdue = Math.max(0, Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24)));
                 
-                row.innerHTML = `
-                    <td>${rental.admissionNumber}</td>
-                    <td>${rental.bookTitle}</td>
-                    <td>${formatDate(rental.rentDate)}</td>
-                    <td>${formatDate(rental.dueDate)}</td>
-                    <td><span class="${daysLeftClass}">${daysLeftText}</span></td>
-                    <td>
-                        <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button>
-                    </td>
-                `;
-                activeRentalsBody.appendChild(row);
+                // Populate modal
+                confirmUserName.textContent = rental.userName;
+                confirmBookTitle.textContent = rental.bookTitle;
+                confirmRentDate.textContent = formatDate(rental.rentDate);
+                confirmDueDate.textContent = formatDate(rental.dueDate);
+                confirmDaysOverdue.textContent = daysOverdue > 0 ? `${daysOverdue} days` : 'Not overdue';
+                
+                // Show modal
+                returnModalError.style.display = 'none';
+                returnModal.style.display = 'flex';
+            }
+        } catch (error) {
+            console.error('Error preparing return:', error);
+            alert('Error preparing return. Please try again.');
+        }
+    };
+
+    // Confirm Return
+    confirmReturnBtn.addEventListener('click', async () => {
+        if (!currentRentalToReturn) {
+            showError(returnModalError, 'No rental selected for return.');
+            return;
+        }
+        
+        try {
+            // Get rental data
+            const rentalDoc = await db.collection('rentals').doc(currentRentalToReturn).get();
+            const rental = rentalDoc.data();
+            
+            // Update rental status
+            await db.collection('rentals').doc(currentRentalToReturn).update({
+                status: 'returned',
+                returnDate: new Date().toISOString()
             });
             
-            if (activeRentals.length === 0) {
-                activeRentalsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No active rentals found</td></tr>';
-            }
-        }
-
-        // Render overdue books
-        function renderOverdueBooks() {
-            overdueTableBody.innerHTML = '';
-            const today = new Date();
-            let overdueCount = 0;
-            
-            rentals.forEach(rental => {
-                if (rental.status === 'active') {
-                    const dueDate = rental.dueDate.toDate();
-                    
-                    if (dueDate < today) {
-                        overdueCount++;
-                        const daysOverdue = Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24));
-                        
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${rental.admissionNumber}</td>
-                            <td>${rental.userName}</td>
-                            <td>${rental.bookTitle}</td>
-                            <td>${formatDate(rental.dueDate)}</td>
-                            <td><span class="status-overdue">${daysOverdue} days</span></td>
-                            <td>
-                                <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button>
-                            </td>
-                        `;
-                        overdueTableBody.appendChild(row);
-                    }
-                }
+            // Update book status
+            await db.collection('books').doc(rental.barcode).update({
+                status: 'available'
             });
             
-            if (overdueCount === 0) {
-                overdueTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No overdue books found</td></tr>';
-            }
-        }
-
-        // Check Book for Return
-        checkReturnBtn.addEventListener('click', async () => {
-            const barcode = returnBarcodeInput.value.trim();
-            if (!barcode) {
-                showError(returnError, 'Please enter a book barcode.');
-                return;
-            }
+            // Show success
+            showSuccess(returnModalError, 'Book returned successfully!');
             
-            try {
-                // Find active rental for this book
-                const snapshot = await db.collection('rentals')
-                    .where('barcode', '==', barcode)
-                    .where('status', '==', 'active')
-                    .get();
-                
-                if (snapshot.empty) {
-                    showError(returnError, 'No active rental found for this book.');
-                    returnAdmissionInput.value = '';
-                    returnBookBtn.disabled = true;
-                    return;
-                }
-                
-                // Get the rental
-                const doc = snapshot.docs[0];
-                const rental = doc.data();
-                currentRentalToReturn = doc.id;
-                
-                returnAdmissionInput.value = rental.admissionNumber;
-                showSuccess(returnError, `Book found! Rented by ${rental.userName}. Due date: ${formatDate(rental.dueDate)}`);
-                returnBookBtn.disabled = false;
-                
-            } catch (error) {
-                console.error('Error checking book for return:', error);
-                showError(returnError, 'Error checking book. Please try again.');
+            // Close modal and refresh data
+            setTimeout(() => {
+                returnModal.style.display = 'none';
+                // Clear return form
+                returnBarcodeInput.value = '';
+                returnAdmissionInput.value = '';
                 returnBookBtn.disabled = true;
-            }
-        });
+                currentRentalToReturn = null;
+            }, 1500);
+            
+        } catch (error) {
+            console.error('Error returning book:', error);
+            showError(returnModalError, 'Error returning book. Please try again.');
+        }
+    });
 
-        // Prepare Return
-        window.prepareReturn = async function(rentalId) {
-            try {
-                const doc = await db.collection('rentals').doc(rentalId).get();
-                if (doc.exists) {
-                    const rental = doc.data();
-                    currentRentalToReturn = rentalId;
-                    
-                    // Calculate days overdue
-                    const dueDate = rental.dueDate.toDate();
-                    const today = new Date();
-                    const daysOverdue = Math.max(0, Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24)));
-                    
-                    // Populate modal
-                    confirmUserName.textContent = rental.userName;
-                    confirmBookTitle.textContent = rental.bookTitle;
-                    confirmRentDate.textContent = formatDate(rental.rentDate);
-                    confirmDueDate.textContent = formatDate(rental.dueDate);
-                    confirmDaysOverdue.textContent = daysOverdue > 0 ? `${daysOverdue} days` : 'Not overdue';
-                    
-                    // Show modal
-                    returnModalError.style.display = 'none';
-                    returnModal.style.display = 'flex';
+    // Return Book (from form)
+    returnBookBtn.addEventListener('click', () => {
+        if (currentRentalToReturn) {
+            prepareReturn(currentRentalToReturn);
+        } else {
+            showError(returnError, 'Please check the book first.');
+        }
+    });
+
+    // Close Return Modal
+    closeReturnModal.addEventListener('click', () => {
+        returnModal.style.display = 'none';
+    });
+
+    cancelReturnBtn.addEventListener('click', () => {
+        returnModal.style.display = 'none';
+    });
+
+    // ========== REPORTS ==========
+    async function loadReports() {
+        try {
+            // Load fresh data for reports
+            const booksSnapshot = await db.collection('books').get();
+            const usersSnapshot = await db.collection('users').get();
+            const rentalsSnapshot = await db.collection('rentals').get();
+            
+            // Calculate stats
+            const totalBooks = booksSnapshot.size;
+            const availableBooksCount = booksSnapshot.docs.filter(doc => doc.data().status === 'available').length;
+            const rentedBooksCount = booksSnapshot.docs.filter(doc => doc.data().status === 'rented').length;
+            const totalUsers = usersSnapshot.size;
+            
+            // Update report cards
+            reportTotalBooks.textContent = totalBooks;
+            availableBooks.textContent = availableBooksCount;
+            reportRentedBooks.textContent = rentedBooksCount;
+            activeUsers.textContent = totalUsers;
+            
+            // Category breakdown
+            const categories = {};
+            booksSnapshot.forEach(doc => {
+                const book = doc.data();
+                const category = book.category || 'Uncategorized';
+                
+                if (!categories[category]) {
+                    categories[category] = { total: 0, available: 0, rented: 0 };
                 }
-            } catch (error) {
-                console.error('Error preparing return:', error);
-                alert('Error preparing return. Please try again.');
-            }
-        };
-
-        // Confirm Return
-        confirmReturnBtn.addEventListener('click', async () => {
-            if (!currentRentalToReturn) {
-                showError(returnModalError, 'No rental selected for return.');
-                return;
+                
+                categories[category].total++;
+                if (book.status === 'available') {
+                    categories[category].available++;
+                } else if (book.status === 'rented') {
+                    categories[category].rented++;
+                }
+            });
+            
+            // Update category table
+            categoryTableBody.innerHTML = '';
+            for (const [category, stats] of Object.entries(categories)) {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${category}</td>
+                    <td>${stats.total}</td>
+                    <td>${stats.available}</td>
+                    <td>${stats.rented}</td>
+                `;
+                categoryTableBody.appendChild(row);
             }
             
-            try {
-                // Get rental data
-                const rentalDoc = await db.collection('rentals').doc(currentRentalToReturn).get();
-                const rental = rentalDoc.data();
+            // Popular books (most rented)
+            const bookRentalCount = {};
+            rentalsSnapshot.forEach(doc => {
+                const rental = doc.data();
+                const key = `${rental.bookTitle}|${rental.barcode}`;
+                bookRentalCount[key] = (bookRentalCount[key] || 0) + 1;
+            });
+            
+            // Get top 10 most rented books
+            const popularBooks = Object.entries(bookRentalCount)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 10);
+            
+            // Update popular books table
+            popularBooksBody.innerHTML = '';
+            popularBooks.forEach(([key, count]) => {
+                const [title, barcode] = key.split('|');
                 
-                // Update rental status
-                await db.collection('rentals').doc(currentRentalToReturn).update({
-                    status: 'returned',
-                    returnDate: new Date().toISOString()
-                });
-                
-                // Update book status
-                await db.collection('books').doc(rental.barcode).update({
-                    status: 'available'
-                });
-                
-                // Show success
-                showSuccess(returnModalError, 'Book returned successfully!');
-                
-                // Close modal and refresh data
-                setTimeout(() => {
-                    returnModal.style.display = 'none';
-                    // Clear return form
-                    returnBarcodeInput.value = '';
-                    returnAdmissionInput.value = '';
-                    returnBookBtn.disabled = true;
-                    currentRentalToReturn = null;
-                }, 1500);
-                
-            } catch (error) {
-                console.error('Error returning book:', error);
-                showError(returnModalError, 'Error returning book. Please try again.');
-            }
-        });
-
-        // Return Book (from form)
-        returnBookBtn.addEventListener('click', () => {
-            if (currentRentalToReturn) {
-                prepareReturn(currentRentalToReturn);
-            } else {
-                showError(returnError, 'Please check the book first.');
-            }
-        });
-
-        // Close Return Modal
-        closeReturnModal.addEventListener('click', () => {
-            returnModal.style.display = 'none';
-        });
-
-        cancelReturnBtn.addEventListener('click', () => {
-            returnModal.style.display = 'none';
-        });
-
-        // Load Reports
-        async function loadReports() {
-            try {
-                // Load fresh data for reports
-                const booksSnapshot = await db.collection('books').get();
-                const usersSnapshot = await db.collection('users').get();
-                const rentalsSnapshot = await db.collection('rentals').get();
-                
-                // Calculate stats
-                const totalBooks = booksSnapshot.size;
-                const availableBooksCount = booksSnapshot.docs.filter(doc => doc.data().status === 'available').length;
-                const rentedBooksCount = booksSnapshot.docs.filter(doc => doc.data().status === 'rented').length;
-                const totalUsers = usersSnapshot.size;
-                
-                // Update report cards
-                reportTotalBooks.textContent = totalBooks;
-                availableBooks.textContent = availableBooksCount;
-                reportRentedBooks.textContent = rentedBooksCount;
-                activeUsers.textContent = totalUsers;
-                
-                // Category breakdown
-                const categories = {};
-                booksSnapshot.forEach(doc => {
-                    const book = doc.data();
-                    const category = book.category || 'Uncategorized';
-                    
-                    if (!categories[category]) {
-                        categories[category] = { total: 0, available: 0, rented: 0 };
-                    }
-                    
-                    categories[category].total++;
-                    if (book.status === 'available') {
-                        categories[category].available++;
-                    } else if (book.status === 'rented') {
-                        categories[category].rented++;
-                    }
-                });
-                
-                // Update category table
-                categoryTableBody.innerHTML = '';
-                for (const [category, stats] of Object.entries(categories)) {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${category}</td>
-                        <td>${stats.total}</td>
-                        <td>${stats.available}</td>
-                        <td>${stats.rented}</td>
-                    `;
-                    categoryTableBody.appendChild(row);
-                }
-                
-                // Popular books (most rented)
-                const bookRentalCount = {};
+                // Check if currently rented
+                let currentlyRented = false;
                 rentalsSnapshot.forEach(doc => {
                     const rental = doc.data();
-                    const key = `${rental.bookTitle}|${rental.barcode}`;
-                    bookRentalCount[key] = (bookRentalCount[key] || 0) + 1;
+                    if (rental.barcode === barcode && rental.status === 'active') {
+                        currentlyRented = true;
+                    }
                 });
                 
-                // Get top 10 most rented books
-                const popularBooks = Object.entries(bookRentalCount)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 10);
-                
-                // Update popular books table
-                popularBooksBody.innerHTML = '';
-                popularBooks.forEach(([key, count]) => {
-                    const [title, barcode] = key.split('|');
-                    
-                    // Check if currently rented
-                    let currentlyRented = false;
-                    rentalsSnapshot.forEach(doc => {
-                        const rental = doc.data();
-                        if (rental.barcode === barcode && rental.status === 'active') {
-                            currentlyRented = true;
-                        }
-                    });
-                    
-                    // Find book details
-                    let author = 'Unknown';
-                    booksSnapshot.forEach(doc => {
-                        const book = doc.data();
-                        if (book.barcode === barcode) {
-                            author = book.author;
-                        }
-                    });
-                    
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${title}</td>
-                        <td>${author}</td>
-                        <td>${count}</td>
-                        <td>${currentlyRented ? 'Yes' : 'No'}</td>
-                    `;
-                    popularBooksBody.appendChild(row);
+                // Find book details
+                let author = 'Unknown';
+                booksSnapshot.forEach(doc => {
+                    const book = doc.data();
+                    if (book.barcode === barcode) {
+                        author = book.author;
+                    }
                 });
                 
-                if (popularBooks.length === 0) {
-                    popularBooksBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px;">No rental history yet</td></tr>';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${title}</td>
+                    <td>${author}</td>
+                    <td>${count}</td>
+                    <td>${currentlyRented ? 'Yes' : 'No'}</td>
+                `;
+                popularBooksBody.appendChild(row);
+            });
+            
+            if (popularBooks.length === 0) {
+                popularBooksBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px;">No rental history yet</td></tr>';
+            }
+            
+        } catch (error) {
+            console.error('Error loading reports:', error);
+        }
+    }
+
+    refreshReportsBtn.addEventListener('click', () => {
+        loadReports();
+    });
+
+    // ========== BARCODE SCANNER ==========
+    function initBarcodeScanner() {
+        if ('BarcodeDetector' in window) {
+            try {
+                barcodeDetector = new BarcodeDetector({ 
+                    formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'codabar'] 
+                });
+                console.log('✅ BarcodeDetector API supported');
+            } catch (error) {
+                console.error('BarcodeDetector error:', error);
+            }
+        } else {
+            console.log('⚠️ BarcodeDetector API not supported in this browser');
+        }
+    }
+
+    // Get available cameras
+    async function getCameras() {
+        try {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const videoDevices = devices.filter(device => device.kind === 'videoinput');
+            
+            cameraSelect.innerHTML = '<option value="">Select Camera...</option>';
+            
+            videoDevices.forEach((device, index) => {
+                const option = document.createElement('option');
+                option.value = device.deviceId;
+                option.text = device.label || `Camera ${index + 1}`;
+                cameraSelect.appendChild(option);
+            });
+            
+            return videoDevices.length > 0;
+        } catch (error) {
+            console.error('Error getting cameras:', error);
+            return false;
+        }
+    }
+
+    // Start camera stream
+    async function startCamera(deviceId = '') {
+        stopCamera();
+        
+        try {
+            const constraints = {
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    facingMode: 'environment'
+                }
+            };
+            
+            if (deviceId) {
+                constraints.video.deviceId = { exact: deviceId };
+            }
+            
+            scannerStream = await navigator.mediaDevices.getUserMedia(constraints);
+            scannerVideo.srcObject = scannerStream;
+            scannerVideo.play();
+            
+            // Start barcode detection
+            detectBarcodes();
+            
+            return true;
+        } catch (error) {
+            console.error('Camera error:', error);
+            alert('Cannot access camera. Please check permissions.');
+            return false;
+        }
+    }
+
+    // Stop camera stream
+    function stopCamera() {
+        if (scannerStream) {
+            scannerStream.getTracks().forEach(track => track.stop());
+            scannerStream = null;
+        }
+        if (scannerVideo.srcObject) {
+            scannerVideo.srcObject = null;
+        }
+    }
+
+    // Detect barcodes from video stream
+    async function detectBarcodes() {
+        if (!barcodeDetector || !scannerVideo.srcObject) return;
+        
+        try {
+            const barcodes = await barcodeDetector.detect(scannerVideo);
+            
+            if (barcodes.length > 0) {
+                const barcode = barcodes[0];
+                showBarcodeResult(barcode.rawValue);
+            } else {
+                // Continue scanning
+                requestAnimationFrame(detectBarcodes);
+            }
+        } catch (error) {
+            console.error('Detection error:', error);
+            // Continue scanning
+            setTimeout(() => detectBarcodes(), 100);
+        }
+    }
+
+    // Show detected barcode result
+    function showBarcodeResult(barcode) {
+        detectedBarcodeSpan.textContent = barcode;
+        scannerResult.style.display = 'block';
+        stopCamera();
+    }
+
+    // Reset scanner for new scan
+    function resetScanner() {
+        scannerResult.style.display = 'none';
+        detectedBarcodeSpan.textContent = '';
+        manualBarcodeInput.value = '';
+        startCamera(cameraSelect.value);
+    }
+
+    // Use the detected barcode
+    function useDetectedBarcode(barcode) {
+        // Fill the appropriate barcode input based on context
+        if (currentScannerContext === 'addBook' && modalBarcode) {
+            modalBarcode.value = barcode;
+            modalBarcode.focus();
+        } else if (currentScannerContext === 'rentBook' && bookBarcodeInput) {
+            bookBarcodeInput.value = barcode;
+            bookBarcodeInput.focus();
+            // Auto-check the book
+            setTimeout(() => checkBookBtn.click(), 500);
+        } else if (currentScannerContext === 'returnBook' && returnBarcodeInput) {
+            returnBarcodeInput.value = barcode;
+            returnBarcodeInput.focus();
+            // Auto-check the book
+            setTimeout(() => checkReturnBtn.click(), 500);
+        }
+        
+        // Close scanner
+        barcodeScannerModal.style.display = 'none';
+        stopCamera();
+    }
+
+    // Open scanner modal
+    async function openBarcodeScanner(context = 'addBook') {
+        currentScannerContext = context;
+        
+        // Reset scanner
+        scannerResult.style.display = 'none';
+        detectedBarcodeSpan.textContent = '';
+        manualBarcodeInput.value = '';
+        
+        // Get cameras and open modal
+        const hasCameras = await getCameras();
+        if (hasCameras) {
+            barcodeScannerModal.style.display = 'flex';
+            // Start with default camera
+            setTimeout(() => startCamera(), 100);
+        } else {
+            alert('No cameras found. Please check your device.');
+        }
+    }
+
+    // Event Listeners for Scanner
+    closeScannerModal.addEventListener('click', () => {
+        barcodeScannerModal.style.display = 'none';
+        stopCamera();
+    });
+
+    cameraSelect.addEventListener('change', (e) => {
+        if (e.target.value) {
+            startCamera(e.target.value);
+        }
+    });
+
+    useBarcodeBtn.addEventListener('click', () => {
+        const barcode = detectedBarcodeSpan.textContent;
+        if (barcode) {
+            useDetectedBarcode(barcode);
+        }
+    });
+
+    scanAgainBtn.addEventListener('click', resetScanner);
+
+    manualSubmitBtn.addEventListener('click', () => {
+        const barcode = manualBarcodeInput.value.trim();
+        if (barcode) {
+            useDetectedBarcode(barcode);
+        } else {
+            alert('Please enter a barcode');
+        }
+    });
+
+    manualBarcodeInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            manualSubmitBtn.click();
+        }
+    });
+
+    // ========== ISBN LOOKUP ==========
+    async function fetchBookDetailsFromISBN(isbn) {
+        try {
+            const response = await fetch(`https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`);
+            const data = await response.json();
+            
+            const bookKey = `ISBN:${isbn}`;
+            if (data[bookKey]) {
+                const book = data[bookKey];
+                
+                // Auto-populate fields
+                if (modalTitleInput) {
+                    modalTitleInput.value = book.title || '';
+                }
+                if (modalAuthor) {
+                    modalAuthor.value = book.authors ? book.authors.map(a => a.name).join(', ') : '';
+                }
+                if (modalPublisher) {
+                    modalPublisher.value = book.publishers ? book.publishers[0].name : '';
+                }
+                if (modalYear) {
+                    const year = book.publish_date ? new Date(book.publish_date).getFullYear() : '';
+                    modalYear.value = isNaN(year) ? '' : year;
                 }
                 
-            } catch (error) {
-                console.error('Error loading reports:', error);
+                showNotification('Book details auto-filled from ISBN', 'success');
             }
+        } catch (error) {
+            console.log('Could not fetch book details:', error);
         }
+    }
 
-        // Refresh Reports
-        refreshReportsBtn.addEventListener('click', () => {
-            loadReports();
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 5px;
+            color: white;
+            background: ${type === 'success' ? '#27ae60' : type === 'error' ? '#e74c3c' : '#3498db'};
+            z-index: 9999;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        `;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 3000);
+    }
+
+    // ========== SIMPLE MOBILE SCANNER FALLBACK ==========
+    function setupMobileScannerFallback() {
+        // Add scan buttons to all barcode inputs
+        const barcodeInputs = [modalBarcode, bookBarcodeInput, returnBarcodeInput];
+        
+        barcodeInputs.forEach((input, index) => {
+            if (input && input.parentNode) {
+                // Check if button already exists
+                if (!input.parentNode.querySelector('.mobile-scan-btn')) {
+                    const contexts = ['addBook', 'rentBook', 'returnBook'];
+                    const scanBtn = document.createElement('button');
+                    scanBtn.type = 'button';
+                    scanBtn.className = 'btn mobile-scan-btn';
+                    scanBtn.innerHTML = '<i class="fas fa-camera"></i> Scan';
+                    scanBtn.style.marginLeft = '10px';
+                    scanBtn.style.marginTop = index === 0 ? '5px' : '0';
+                    scanBtn.onclick = () => openSimpleMobileScanner(contexts[index]);
+                    input.parentNode.appendChild(scanBtn);
+                }
+            }
         });
+    }
 
+    function openSimpleMobileScanner(context) {
+        currentScannerContext = context;
+        
+        // Create simple scanner UI
+        const scannerHTML = `
+            <div id="simpleScanner" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; z-index: 2000; padding: 20px;">
+                <button onclick="closeSimpleScanner()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
+                <h3>📱 Scan Barcode</h3>
+                <p>Use your phone's camera to scan:</p>
+                
+                <div style="margin: 30px 0;">
+                    <input type="text" 
+                           id="cameraBarcodeInput" 
+                           style="font-size: 18px; padding: 15px; width: 100%; text-align: center;"
+                           placeholder="Tap here, then point camera at barcode"
+                           inputmode="numeric">
+                    <p style="color: #666; font-size: 14px; margin-top: 10px;">
+                        On mobile: This will open your camera for scanning
+                    </p>
+                </div>
+                
+                <button onclick="processSimpleBarcode()" class="btn" style="width: 100%; padding: 15px; font-size: 16px;">Use Barcode</button>
+                
+                <div style="margin-top: 30px; text-align: center;">
+                    <p><strong>OR</strong></p>
+                    <input type="text" 
+                           id="manualSimpleBarcode" 
+                           placeholder="Enter barcode manually"
+                           style="padding: 12px; width: 100%; margin-bottom: 10px;">
+                    <button onclick="processManualBarcode()" class="btn">Enter Manually</button>
+                </div>
+            </div>
+        `;
+        
+        if (!document.getElementById('simpleScanner')) {
+            document.body.insertAdjacentHTML('beforeend', scannerHTML);
+        } else {
+            document.getElementById('simpleScanner').style.display = 'block';
+        }
+        
+        // Focus the input to trigger mobile keyboard with camera option
+        setTimeout(() => {
+            const input = document.getElementById('cameraBarcodeInput');
+            if (input) {
+                input.focus();
+                input.select();
+            }
+        }, 500);
+    }
+
+    window.closeSimpleScanner = function() {
+        const scanner = document.getElementById('simpleScanner');
+        if (scanner) {
+            scanner.style.display = 'none';
+        }
+    };
+
+    window.processSimpleBarcode = function() {
+        const input = document.getElementById('cameraBarcodeInput');
+        if (input && input.value.trim()) {
+            useDetectedBarcode(input.value.trim());
+            closeSimpleScanner();
+        } else {
+            alert('Please scan or enter a barcode');
+        }
+    };
+
+    window.processManualBarcode = function() {
+        const input = document.getElementById('manualSimpleBarcode');
+        if (input && input.value.trim()) {
+            useDetectedBarcode(input.value.trim());
+            closeSimpleScanner();
+        } else {
+            alert('Please enter a barcode');
+        }
+    };
+
+    // ========== INITIALIZATION ==========
+    // Set default dates
+    window.addEventListener('load', () => {
+        const today = new Date().toISOString().split('T')[0];
+        if (rentDateInput) rentDateInput.value = today;
+        
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 14);
+        if (dueDateInput) dueDateInput.value = dueDate.toISOString().split('T')[0];
+        
+        // Setup mobile scanner fallback
+        setupMobileScannerFallback();
+        
         // Auto-check user on admission number change
-        admissionNumberInput.addEventListener('blur', () => {
-            if (admissionNumberInput.value.trim()) {
-                checkUserBtn.click();
-            }
-        });
-
-        // Auto-check book on barcode change (rent)
-        bookBarcodeInput.addEventListener('blur', () => {
-            if (bookBarcodeInput.value.trim()) {
-                checkBookBtn.click();
-            }
-        });
-
-        // Auto-check book on barcode change (return)
-        returnBarcodeInput.addEventListener('blur', () => {
-            if (returnBarcodeInput.value.trim()) {
-                checkReturnBtn.click();
-            }
-        });
-
-        // Set default rent date to today
-        window.addEventListener('load', () => {
-            const today = new Date().toISOString().split('T')[0];
-            rentDateInput.value = today;
-            
-            // Set due date 14 days from today
-            const dueDate = new Date();
-            dueDate.setDate(dueDate.getDate() + 14);
-            dueDateInput.value = dueDate.toISOString().split('T')[0];
-            
-            // Demo credentials hint
-            emailInput.placeholder = "admin@anusrc.lk";
-        });
-    </script>
+        if (admissionNumberInput) {
+            admissionNumberInput.addEventListener('blur', () => {
+                if (admissionNumberInput.value.trim()) {
+                    checkUserBtn.click();
+                }
+            });
+        }
+        
+        // Auto-check book on barcode change
+        if (bookBarcodeInput) {
+            bookBarcodeInput.addEventListener('blur', () => {
+                if (bookBarcodeInput.value.trim()) {
+                    checkBookBtn.click();
+                }
+            });
+        }
+        
+        // Auto-check return book on barcode change
+        if (returnBarcodeInput) {
+            returnBarcodeInput.addEventListener('blur', () => {
+                if (returnBarcodeInput.value.trim()) {
+                    checkReturnBtn.click();
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>
