@@ -1,0 +1,4 @@
+// DEMO CREDENTIALS (Change these in production!)
+dev@anusrc.lk      - Password: Dev123!
+admin@anusrc.lk    - Password: Admin123!
+principal@anusrc.lk - Password: Principal123!
