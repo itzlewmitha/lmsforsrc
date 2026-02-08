@@ -141,6 +141,92 @@ bookCopyModal.innerHTML = `
 `;
 document.body.appendChild(bookCopyModal);
 
+// NEW: Barcode Generator Modal
+const barcodeGeneratorModal = document.createElement('div');
+barcodeGeneratorModal.className = 'modal';
+barcodeGeneratorModal.innerHTML = `
+    <div class="modal-content" style="max-width: 600px;">
+        <button class="modal-close" id="closeBarcodeGenerator">&times;</button>
+        <div class="modal-header">
+            <h3><i class="fas fa-barcode"></i> Generate Barcode</h3>
+            <p>Create barcode for books without ISBN/barcode</p>
+        </div>
+        
+        <div id="barcodeGeneratorError" class="error-message"></div>
+        <div id="barcodeGeneratorSuccess" class="success-message"></div>
+        
+        <div style="margin-bottom: 20px;">
+            <div class="form-group">
+                <label for="generateBookTitle">Book Title *</label>
+                <input type="text" id="generateBookTitle" placeholder="Enter book title" style="width: 100%;">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="generateAuthor">Author *</label>
+                    <input type="text" id="generateAuthor" placeholder="Enter author name">
+                </div>
+                <div class="form-group">
+                    <label for="generateYear">Year</label>
+                    <input type="number" id="generateYear" placeholder="Publication year" min="1900" max="2027">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="generateCategory">Category *</label>
+                    <select id="generateCategory" style="width: 100%;">
+                        <option value="">Select Category</option>
+                        <option value="Fiction">Fiction</option>
+                        <option value="Non-Fiction">Non-Fiction</option>
+                        <option value="Science">Science</option>
+                        <option value="Mathematics">Mathematics</option>
+                        <option value="History">History</option>
+                        <option value="Biography">Biography</option>
+                        <option value="Technology">Technology</option>
+                        <option value="Reference">Reference</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="generateQuantity">Quantity</label>
+                    <input type="number" id="generateQuantity" value="1" min="1" max="100">
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="generatePublisher">Publisher</label>
+                <input type="text" id="generatePublisher" placeholder="Publisher name" style="width: 100%;">
+            </div>
+        </div>
+        
+        <div style="margin: 25px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+            <div id="barcodePreview" style="margin-bottom: 15px;">
+                <canvas id="barcodeCanvas" width="300" height="150" style="border: 1px solid #ddd; background: white;"></canvas>
+            </div>
+            <div id="barcodeText" style="font-family: monospace; font-size: 18px; font-weight: bold; margin: 10px 0;"></div>
+            <div style="font-size: 14px; color: #666;">Scan this barcode or enter it manually</div>
+        </div>
+        
+        <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="generateBarcodeBtn" class="btn btn-success" style="flex: 1;">
+                <i class="fas fa-sync-alt"></i> Generate Barcode
+            </button>
+            <button id="downloadBarcodeBtn" class="btn" style="flex: 1;" disabled>
+                <i class="fas fa-download"></i> Download Barcode
+            </button>
+            <button id="useGeneratedBarcodeBtn" class="btn" style="flex: 1;" disabled>
+                <i class="fas fa-check"></i> Use This Barcode
+            </button>
+        </div>
+        
+        <div style="background: #e8f4fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+            <p style="margin: 0; font-size: 13px; color: #0c5460;">
+                <i class="fas fa-info-circle"></i> <strong>How it works:</strong> 
+                The system generates a unique barcode based on book details. You can download it as an image and paste it on the book.
+            </p>
+        </div>
+    </div>
+`;
+document.body.appendChild(barcodeGeneratorModal);
+
 // Global Variables
 let currentBookToEdit = null;
 let currentRentalToReturn = null;
@@ -155,6 +241,8 @@ let scannerStream = null;
 let barcodeDetector = null;
 let currentScannerContext = 'addBook';
 let availableCopies = []; // Store available book copies for selection
+let generatedBarcode = ''; // Store the currently generated barcode
+let generatedBookData = null; // Store book data for generated barcode
 
 // ========== UTILITY FUNCTIONS ==========
 function showLogin() {
@@ -215,6 +303,71 @@ function generateBookNumbers(baseNumber, quantity) {
         numbers.push(`${baseNumber}-COPY${i.toString().padStart(2, '0')}`);
     }
     return numbers;
+}
+
+// Generate a unique barcode based on book details
+function generateUniqueBarcode(bookTitle, author, year, category) {
+    // Create a hash from book details
+    const str = `${bookTitle}-${author}-${year}-${category}-${Date.now()}`;
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    
+    // Create a 13-digit barcode (like EAN-13)
+    const baseCode = Math.abs(hash).toString().padStart(12, '0').substring(0, 12);
+    
+    // Calculate EAN-13 check digit
+    let sum = 0;
+    for (let i = 0; i < baseCode.length; i++) {
+        const digit = parseInt(baseCode[i]);
+        sum += (i % 2 === 0) ? digit : digit * 3;
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    
+    return `RAH${baseCode}${checkDigit}`;
+}
+
+// Generate barcode image using JsBarcode
+function generateBarcodeImage(barcode, canvasId) {
+    try {
+        // Clear previous barcode
+        const canvas = document.getElementById(canvasId);
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Generate barcode
+        JsBarcode(`#${canvasId}`, barcode, {
+            format: "CODE128",
+            width: 2,
+            height: 100,
+            displayValue: true,
+            fontSize: 16,
+            margin: 10,
+            background: "#ffffff",
+            lineColor: "#000000"
+        });
+        
+        return true;
+    } catch (error) {
+        console.error('Error generating barcode:', error);
+        return false;
+    }
+}
+
+// Download barcode as PNG
+function downloadBarcode(barcode, bookTitle) {
+    try {
+        const canvas = document.getElementById('barcodeCanvas');
+        const link = document.createElement('a');
+        link.download = `Barcode_${bookTitle.replace(/[^a-z0-9]/gi, '_')}_${barcode}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+    } catch (error) {
+        console.error('Error downloading barcode:', error);
+    }
 }
 
 // ========== AUTHENTICATION ==========
@@ -446,7 +599,7 @@ function renderBooksTable() {
     }
 }
 
-// Add Book Modal
+// Add Book Modal - Enhanced with Generate Barcode button
 addBookBtn.addEventListener('click', () => openAddBookModal());
 
 function openAddBookModal(barcode = '') {
@@ -464,8 +617,173 @@ function openAddBookModal(barcode = '') {
         modalStatus.value = 'available';
         bookModalError.style.display = 'none';
         bookModal.style.display = 'flex';
+        
+        // Add Generate Barcode button if not already present
+        if (!document.getElementById('generateBarcodeFromFormBtn')) {
+            const generateBtn = document.createElement('button');
+            generateBtn.id = 'generateBarcodeFromFormBtn';
+            generateBtn.type = 'button';
+            generateBtn.className = 'btn btn-success';
+            generateBtn.style.marginTop = '10px';
+            generateBtn.style.width = '100%';
+            generateBtn.innerHTML = '<i class="fas fa-barcode"></i> Generate Barcode from Book Details';
+            generateBtn.onclick = () => generateBarcodeFromForm();
+            
+            // Insert after barcode field
+            modalBarcode.parentNode.parentNode.appendChild(generateBtn);
+        }
     } catch (error) {
         handleError('openAddBookModal', error);
+    }
+}
+
+// Generate barcode from form data
+function generateBarcodeFromForm() {
+    try {
+        const title = modalTitleInput.value.trim();
+        const author = modalAuthor.value.trim();
+        const year = modalYear.value || new Date().getFullYear();
+        const category = modalCategory.value;
+        
+        if (!title || !author || !category) {
+            showError(bookModalError, 'Please fill in Title, Author, and Category to generate barcode.');
+            return;
+        }
+        
+        // Generate barcode
+        const barcode = generateUniqueBarcode(title, author, year, category);
+        modalBarcode.value = barcode;
+        
+        // Show success message
+        showSuccess(bookModalError, `Barcode generated: ${barcode}`);
+        
+        // Open barcode generator modal with pre-filled data
+        openBarcodeGenerator({
+            title: title,
+            author: author,
+            year: year,
+            category: category,
+            publisher: modalPublisher.value,
+            quantity: modalQuantity.value
+        });
+    } catch (error) {
+        handleError('generateBarcodeFromForm', error);
+    }
+}
+
+// Open Barcode Generator Modal
+function openBarcodeGenerator(prefilledData = null) {
+    try {
+        const generateBookTitle = document.getElementById('generateBookTitle');
+        const generateAuthor = document.getElementById('generateAuthor');
+        const generateYear = document.getElementById('generateYear');
+        const generateCategory = document.getElementById('generateCategory');
+        const generateQuantity = document.getElementById('generateQuantity');
+        const generatePublisher = document.getElementById('generatePublisher');
+        const barcodeGeneratorError = document.getElementById('barcodeGeneratorError');
+        const barcodeGeneratorSuccess = document.getElementById('barcodeGeneratorSuccess');
+        const downloadBarcodeBtn = document.getElementById('downloadBarcodeBtn');
+        const useGeneratedBarcodeBtn = document.getElementById('useGeneratedBarcodeBtn');
+        const barcodeText = document.getElementById('barcodeText');
+        
+        // Clear previous data
+        barcodeGeneratorError.style.display = 'none';
+        barcodeGeneratorSuccess.style.display = 'none';
+        barcodeText.textContent = '';
+        generatedBarcode = '';
+        generatedBookData = null;
+        downloadBarcodeBtn.disabled = true;
+        useGeneratedBarcodeBtn.disabled = true;
+        
+        // Fill with prefilled data if available
+        if (prefilledData) {
+            generateBookTitle.value = prefilledData.title || '';
+            generateAuthor.value = prefilledData.author || '';
+            generateYear.value = prefilledData.year || new Date().getFullYear();
+            generateCategory.value = prefilledData.category || '';
+            generateQuantity.value = prefilledData.quantity || 1;
+            generatePublisher.value = prefilledData.publisher || '';
+        } else {
+            generateBookTitle.value = '';
+            generateAuthor.value = '';
+            generateYear.value = new Date().getFullYear();
+            generateCategory.value = '';
+            generateQuantity.value = 1;
+            generatePublisher.value = '';
+        }
+        
+        barcodeGeneratorModal.style.display = 'flex';
+        
+        // Set up event listeners
+        document.getElementById('generateBarcodeBtn').onclick = () => {
+            const title = generateBookTitle.value.trim();
+            const author = generateAuthor.value.trim();
+            const year = generateYear.value || new Date().getFullYear();
+            const category = generateCategory.value;
+            
+            if (!title || !author || !category) {
+                showError(barcodeGeneratorError, 'Please fill in Title, Author, and Category.');
+                return;
+            }
+            
+            // Generate unique barcode
+            generatedBarcode = generateUniqueBarcode(title, author, year, category);
+            
+            // Store book data
+            generatedBookData = {
+                title: title,
+                author: author,
+                year: year,
+                category: category,
+                publisher: generatePublisher.value,
+                quantity: parseInt(generateQuantity.value) || 1
+            };
+            
+            // Generate and display barcode image
+            if (generateBarcodeImage(generatedBarcode, 'barcodeCanvas')) {
+                barcodeText.textContent = generatedBarcode;
+                downloadBarcodeBtn.disabled = false;
+                useGeneratedBarcodeBtn.disabled = false;
+                showSuccess(barcodeGeneratorSuccess, 'Barcode generated successfully!');
+            } else {
+                showError(barcodeGeneratorError, 'Failed to generate barcode image.');
+            }
+        };
+        
+        // Download barcode button
+        downloadBarcodeBtn.onclick = () => {
+            if (generatedBarcode && generatedBookData) {
+                downloadBarcode(generatedBarcode, generatedBookData.title);
+                showSuccess(barcodeGeneratorSuccess, 'Barcode downloaded!');
+            }
+        };
+        
+        // Use barcode button
+        useGeneratedBarcodeBtn.onclick = () => {
+            if (generatedBarcode && generatedBookData) {
+                // Close generator modal
+                barcodeGeneratorModal.style.display = 'none';
+                
+                // Fill the add book form with generated data
+                modalTitleInput.value = generatedBookData.title;
+                modalAuthor.value = generatedBookData.author;
+                modalBarcode.value = generatedBarcode;
+                modalYear.value = generatedBookData.year;
+                modalCategory.value = generatedBookData.category;
+                modalPublisher.value = generatedBookData.publisher;
+                modalQuantity.value = generatedBookData.quantity;
+                
+                showSuccess(bookModalError, 'Book details filled from generated barcode!');
+            }
+        };
+        
+        // Close button
+        document.getElementById('closeBarcodeGenerator').onclick = () => {
+            barcodeGeneratorModal.style.display = 'none';
+        };
+        
+    } catch (error) {
+        handleError('openBarcodeGenerator', error);
     }
 }
 
@@ -639,7 +957,7 @@ checkBookBtn.addEventListener('click', async () => {
     }
 });
 
-// NEW: Book Copy Selection Modal
+// Book Copy Selection Modal
 function openBookCopyModal(book) {
     try {
         const copyBookTitle = document.getElementById('copyBookTitle');
@@ -1207,7 +1525,7 @@ async function openBarcodeScanner(context = 'addBook') {
 
 // Scanner Event Listeners
 closeScannerModal.addEventListener('click', () => {
-    barcodeScannerModal.style.display = 'none';
+    barcodeGeneratorModal.style.display = 'none';
     stopCamera();
 });
 
@@ -1256,6 +1574,19 @@ function addScannerButtons() {
         scanBtn.onclick = () => openBarcodeScanner('returnBook');
         returnBarcodeInput.parentNode.appendChild(scanBtn);
     }
+    
+    // Add Generate Barcode button to the Books section header
+    const booksSectionHeader = document.querySelector('#booksSection .section-header');
+    if (booksSectionHeader && !document.getElementById('generateBarcodeToolBtn')) {
+        const generateBarcodeBtn = document.createElement('button');
+        generateBarcodeBtn.id = 'generateBarcodeToolBtn';
+        generateBarcodeBtn.className = 'btn btn-success';
+        generateBarcodeBtn.style.marginRight = '10px';
+        generateBarcodeBtn.innerHTML = '<i class="fas fa-barcode"></i> Generate Barcode';
+        generateBarcodeBtn.onclick = () => openBarcodeGenerator();
+        
+        booksSectionHeader.insertBefore(generateBarcodeBtn, addBookBtn);
+    }
 }
 
 // ========== INITIALIZATION ==========
@@ -1282,6 +1613,14 @@ window.addEventListener('load', () => {
         returnBarcodeInput?.addEventListener('blur', () => {
             if (returnBarcodeInput.value.trim()) checkReturnBtn.click();
         });
+        
+        // Load JsBarcode library dynamically
+        if (!window.JsBarcode) {
+            const script = document.createElement('script');
+            script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js';
+            script.onload = () => console.log('JsBarcode loaded successfully');
+            document.head.appendChild(script);
+        }
     } catch (error) {
         handleError('initialization', error);
     }
