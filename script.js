@@ -48,6 +48,7 @@ const modalBarcode = document.getElementById('modalBarcode');
 const modalTitleInput = document.getElementById('modalTitleInput');
 const modalAuthor = document.getElementById('modalAuthor');
 const modalQuantity = document.getElementById('modalQuantity');
+const modalbooknumber = document.getElementById('modalbooknumber');
 const modalPublisher = document.getElementById('modalPublisher');
 const modalYear = document.getElementById('modalYear');
 const modalCategory = document.getElementById('modalCategory');
@@ -409,6 +410,7 @@ function openAddBookModal(barcode = '') {
         modalAuthor.value = '';
         modalQuantity.value = 1;
         modalPublisher.value = '';
+        modalPublisher.value = '';
         modalYear.value = new Date().getFullYear();
         modalCategory.value = '';
         modalStatus.value = 'available';
@@ -431,6 +433,7 @@ window.editBook = async function(bookId) {
             modalTitleInput.value = book.title;
             modalAuthor.value = book.author;
             modalQuantity.value = book.quantity || 1;
+            modalPublisher.value = '';
             modalPublisher.value = book.publisher || '';
             modalYear.value = book.year || new Date().getFullYear();
             modalCategory.value = book.category || '';
@@ -465,6 +468,7 @@ bookForm.addEventListener('submit', async (e) => {
             title: modalTitleInput.value.trim(),
             author: modalAuthor.value.trim(),
             quantity: parseInt(modalQuantity.value) || 1,
+            booknumber: modalbooknumber.value .trim(),
             publisher: modalPublisher.value.trim(),
             year: parseInt(modalYear.value) || new Date().getFullYear(),
             category: modalCategory.value,
