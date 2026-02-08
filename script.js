@@ -34,11 +34,19 @@ const rentedBooksEl = document.getElementById('rentedBooks');
 const overdueBooksEl = document.getElementById('overdueBooks');
 const registeredUsersEl = document.getElementById('registeredUsers');
 const recentRentalsBody = document.getElementById('recentRentalsBody');
+const availableCopiesEl = document.getElementById('availableCopies');
 
 // Books Management
 const booksTableBody = document.getElementById('booksTableBody');
 const booksLoading = document.getElementById('booksLoading');
+const booksEmptyState = document.getElementById('booksEmptyState');
 const addBookBtn = document.getElementById('addBookBtn');
+const addBookEmptyBtn = document.getElementById('addBookEmptyBtn');
+const generateBarcodeToolBtn = document.getElementById('generateBarcodeToolBtn');
+const bookSearchInput = document.getElementById('bookSearchInput');
+const bookStatusFilter = document.getElementById('bookStatusFilter');
+
+// Book Modal Elements
 const bookModal = document.getElementById('bookModal');
 const closeBookModal = document.getElementById('closeBookModal');
 const cancelBookBtn = document.getElementById('cancelBookBtn');
@@ -55,6 +63,13 @@ const modalCategory = document.getElementById('modalCategory');
 const modalStatus = document.getElementById('modalStatus');
 const saveBookBtn = document.getElementById('saveBookBtn');
 const bookModalError = document.getElementById('bookModalError');
+
+// Barcode Scanner/Generate Elements
+const scanModalBarcodeBtn = document.getElementById('scanModalBarcodeBtn');
+const generateModalBarcodeBtn = document.getElementById('generateModalBarcodeBtn');
+const scanBookBarcodeBtn = document.getElementById('scanBookBarcodeBtn');
+const generateBookBarcodeBtn = document.getElementById('generateBookBarcodeBtn');
+const scanReturnBarcodeBtn = document.getElementById('scanReturnBarcodeBtn');
 
 // Rent Book Elements
 const admissionNumberInput = document.getElementById('admissionNumber');
@@ -100,7 +115,7 @@ const activeUsers = document.getElementById('activeUsers');
 const categoryTableBody = document.getElementById('categoryTableBody');
 const popularBooksBody = document.getElementById('popularBooksBody');
 
-// Barcode Scanner Elements
+// Barcode Scanner Modal
 const barcodeScannerModal = document.getElementById('barcodeScannerModal');
 const closeScannerModal = document.getElementById('closeScannerModal');
 const cameraSelect = document.getElementById('cameraSelect');
@@ -112,125 +127,41 @@ const scanAgainBtn = document.getElementById('scanAgainBtn');
 const manualBarcodeInput = document.getElementById('manualBarcode');
 const manualSubmitBtn = document.getElementById('manualSubmitBtn');
 
-// NEW: Book Copy Selection Modal
-const bookCopyModal = document.createElement('div');
-bookCopyModal.className = 'modal';
-bookCopyModal.innerHTML = `
-    <div class="modal-content">
-        <button class="modal-close" id="closeCopyModal">&times;</button>
-        <div class="modal-header">
-            <h3>Select Book Copy</h3>
-        </div>
-        <div id="copyModalError" class="error-message"></div>
-        <div style="margin-bottom: 20px;">
-            <p><strong>Book:</strong> <span id="copyBookTitle"></span></p>
-            <p><strong>Author:</strong> <span id="copyBookAuthor"></span></p>
-            <p><strong>Available Copies:</strong> <span id="copyCount"></span></p>
-        </div>
-        <div style="margin-bottom: 20px;">
-            <label for="copySelect">Select Book Number:</label>
-            <select id="copySelect" style="width: 100%; padding: 10px; margin-top: 5px;">
-                <option value="">Select a book copy...</option>
-            </select>
-        </div>
-        <div class="form-buttons">
-            <button type="button" id="cancelCopyBtn" class="btn btn-danger">Cancel</button>
-            <button type="button" id="confirmCopyBtn" class="btn">Select & Continue</button>
-        </div>
-    </div>
-`;
-document.body.appendChild(bookCopyModal);
+// Barcode Generator Modal
+const barcodeGeneratorModal = document.getElementById('barcodeGeneratorModal');
+const closeBarcodeGenerator = document.getElementById('closeBarcodeGenerator');
+const cancelBarcodeBtn = document.getElementById('cancelBarcodeBtn');
+const generateBookTitle = document.getElementById('generateBookTitle');
+const generateAuthor = document.getElementById('generateAuthor');
+const generateYear = document.getElementById('generateYear');
+const generateCategory = document.getElementById('generateCategory');
+const generateQuantity = document.getElementById('generateQuantity');
+const generatePublisher = document.getElementById('generatePublisher');
+const barcodeGeneratorError = document.getElementById('barcodeGeneratorError');
+const barcodeGeneratorSuccess = document.getElementById('barcodeGeneratorSuccess');
+const barcodeCanvas = document.getElementById('barcodeCanvas');
+const barcodeCanvasContainer = document.getElementById('barcodeCanvasContainer');
+const barcodePlaceholder = document.getElementById('barcodePlaceholder');
+const barcodeText = document.getElementById('barcodeText');
+const generateBarcodeBtn = document.getElementById('generateBarcodeBtn');
+const downloadBarcodeBtn = document.getElementById('downloadBarcodeBtn');
+const useGeneratedBarcodeBtn = document.getElementById('useGeneratedBarcodeBtn');
 
-// NEW: Barcode Generator Modal
-const barcodeGeneratorModal = document.createElement('div');
-barcodeGeneratorModal.className = 'modal';
-barcodeGeneratorModal.innerHTML = `
-    <div class="modal-content" style="max-width: 600px;">
-        <button class="modal-close" id="closeBarcodeGenerator">&times;</button>
-        <div class="modal-header">
-            <h3><i class="fas fa-barcode"></i> Generate Barcode</h3>
-            <p>Create barcode for books without ISBN/barcode</p>
-        </div>
-        
-        <div id="barcodeGeneratorError" class="error-message"></div>
-        <div id="barcodeGeneratorSuccess" class="success-message"></div>
-        
-        <div style="margin-bottom: 20px;">
-            <div class="form-group">
-                <label for="generateBookTitle">Book Title *</label>
-                <input type="text" id="generateBookTitle" placeholder="Enter book title" style="width: 100%;">
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="generateAuthor">Author *</label>
-                    <input type="text" id="generateAuthor" placeholder="Enter author name">
-                </div>
-                <div class="form-group">
-                    <label for="generateYear">Year</label>
-                    <input type="number" id="generateYear" placeholder="Publication year" min="1900" max="2027">
-                </div>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="generateCategory">Category *</label>
-                    <select id="generateCategory" style="width: 100%;">
-                        <option value="">Select Category</option>
-                        <option value="Fiction">Fiction</option>
-                        <option value="Non-Fiction">Non-Fiction</option>
-                        <option value="Science">Science</option>
-                        <option value="Mathematics">Mathematics</option>
-                        <option value="History">History</option>
-                        <option value="Biography">Biography</option>
-                        <option value="Technology">Technology</option>
-                        <option value="Reference">Reference</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="generateQuantity">Quantity</label>
-                    <input type="number" id="generateQuantity" value="1" min="1" max="100">
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="generatePublisher">Publisher</label>
-                <input type="text" id="generatePublisher" placeholder="Publisher name" style="width: 100%;">
-            </div>
-        </div>
-        
-        <div style="margin: 25px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
-            <div id="barcodePreview" style="margin-bottom: 15px;">
-                <canvas id="barcodeCanvas" width="300" height="150" style="border: 1px solid #ddd; background: white;"></canvas>
-            </div>
-            <div id="barcodeText" style="font-family: monospace; font-size: 18px; font-weight: bold; margin: 10px 0;"></div>
-            <div style="font-size: 14px; color: #666;">Scan this barcode or enter it manually</div>
-        </div>
-        
-        <div style="margin: 20px 0; display: flex; gap: 10px; flex-wrap: wrap;">
-            <button id="generateBarcodeBtn" class="btn btn-success" style="flex: 1;">
-                <i class="fas fa-sync-alt"></i> Generate Barcode
-            </button>
-            <button id="downloadBarcodeBtn" class="btn" style="flex: 1;" disabled>
-                <i class="fas fa-download"></i> Download Barcode
-            </button>
-            <button id="useGeneratedBarcodeBtn" class="btn" style="flex: 1;" disabled>
-                <i class="fas fa-check"></i> Use This Barcode
-            </button>
-        </div>
-        
-        <div style="background: #e8f4fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
-            <p style="margin: 0; font-size: 13px; color: #0c5460;">
-                <i class="fas fa-info-circle"></i> <strong>How it works:</strong> 
-                The system generates a unique barcode based on book details. You can download it as an image and paste it on the book.
-            </p>
-        </div>
-    </div>
-`;
-document.body.appendChild(barcodeGeneratorModal);
+// Book Copy Modal
+const bookCopyModal = document.getElementById('bookCopyModal');
+const closeCopyModal = document.getElementById('closeCopyModal');
+const cancelCopyBtn = document.getElementById('cancelCopyBtn');
+const confirmCopyBtn = document.getElementById('confirmCopyBtn');
+const copyBookTitle = document.getElementById('copyBookTitle');
+const copyBookAuthor = document.getElementById('copyBookAuthor');
+const copyCount = document.getElementById('copyCount');
+const copySelect = document.getElementById('copySelect');
+const copyModalError = document.getElementById('copyModalError');
 
 // Global Variables
 let currentBookToEdit = null;
 let currentRentalToReturn = null;
-let currentBookForRent = null; // Store book data when preparing to rent
+let currentBookForRent = null;
 let books = [];
 let users = [];
 let rentals = [];
@@ -239,10 +170,9 @@ let usersUnsubscribe = null;
 let rentalsUnsubscribe = null;
 let scannerStream = null;
 let barcodeDetector = null;
-let currentScannerContext = 'addBook';
-let availableCopies = []; // Store available book copies for selection
-let generatedBarcode = ''; // Store the currently generated barcode
-let generatedBookData = null; // Store book data for generated barcode
+let currentScannerContext = 'addBook'; // 'addBook', 'rentBook', 'returnBook'
+let generatedBarcode = '';
+let generatedBookData = null;
 
 // ========== UTILITY FUNCTIONS ==========
 function showLogin() {
@@ -296,30 +226,26 @@ function handleError(context, error) {
     alert(`Error: ${error.message || 'Something went wrong. Please try again.'}`);
 }
 
-// Generate unique book numbers for each copy
 function generateBookNumbers(baseNumber, quantity) {
     const numbers = [];
+    const prefix = baseNumber || 'LIB';
     for (let i = 1; i <= quantity; i++) {
-        numbers.push(`${baseNumber}-COPY${i.toString().padStart(2, '0')}`);
+        numbers.push(`${prefix}-${i.toString().padStart(3, '0')}`);
     }
     return numbers;
 }
 
-// Generate a unique barcode based on book details
 function generateUniqueBarcode(bookTitle, author, year, category) {
-    // Create a hash from book details
     const str = `${bookTitle}-${author}-${year}-${category}-${Date.now()}`;
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         const char = str.charCodeAt(i);
         hash = ((hash << 5) - hash) + char;
-        hash = hash & hash; // Convert to 32bit integer
+        hash = hash & hash;
     }
     
-    // Create a 13-digit barcode (like EAN-13)
     const baseCode = Math.abs(hash).toString().padStart(12, '0').substring(0, 12);
     
-    // Calculate EAN-13 check digit
     let sum = 0;
     for (let i = 0; i < baseCode.length; i++) {
         const digit = parseInt(baseCode[i]);
@@ -330,26 +256,23 @@ function generateUniqueBarcode(bookTitle, author, year, category) {
     return `RAH${baseCode}${checkDigit}`;
 }
 
-// Generate barcode image using JsBarcode
-function generateBarcodeImage(barcode, canvasId) {
+function generateBarcodeImage(barcode) {
     try {
-        // Clear previous barcode
-        const canvas = document.getElementById(canvasId);
-        const ctx = canvas.getContext('2d');
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Generate barcode
-        JsBarcode(`#${canvasId}`, barcode, {
+        JsBarcode(barcodeCanvas, barcode, {
             format: "CODE128",
             width: 2,
-            height: 100,
+            height: 120,
             displayValue: true,
-            fontSize: 16,
-            margin: 10,
+            fontSize: 18,
+            margin: 15,
             background: "#ffffff",
-            lineColor: "#000000"
+            lineColor: "#000000",
+            textMargin: 10
         });
         
+        barcodeCanvasContainer.style.display = 'block';
+        barcodePlaceholder.style.display = 'none';
+        barcodeText.textContent = barcode;
         return true;
     } catch (error) {
         console.error('Error generating barcode:', error);
@@ -357,16 +280,17 @@ function generateBarcodeImage(barcode, canvasId) {
     }
 }
 
-// Download barcode as PNG
 function downloadBarcode(barcode, bookTitle) {
     try {
-        const canvas = document.getElementById('barcodeCanvas');
+        const canvas = barcodeCanvas;
         const link = document.createElement('a');
         link.download = `Barcode_${bookTitle.replace(/[^a-z0-9]/gi, '_')}_${barcode}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
+        return true;
     } catch (error) {
         console.error('Error downloading barcode:', error);
+        return false;
     }
 }
 
@@ -473,7 +397,6 @@ navLinks.forEach(link => {
                 }
             });
             
-            // Load section data
             const actions = {
                 'dashboard': loadDashboardData,
                 'books': renderBooksTable,
@@ -510,9 +433,7 @@ async function loadDashboardData() {
         rentedBooksEl.textContent = rentedBooksCount;
         overdueBooksEl.textContent = overdueCount;
         registeredUsersEl.textContent = users.length;
-        
-        // Update available copies stat
-        document.getElementById('availableCopies').textContent = availableCopiesCount;
+        availableCopiesEl.textContent = availableCopiesCount;
         
         renderRecentRentals();
     } catch (error) {
@@ -530,7 +451,14 @@ function renderRecentRentals() {
             .slice(0, 10);
         
         if (recentRentals.length === 0) {
-            recentRentalsBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 30px;">No recent rentals found</td></tr>';
+            recentRentalsBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i class="fas fa-history"></i>
+                        <p>No recent rentals found</p>
+                    </td>
+                </tr>
+            `;
             return;
         }
         
@@ -541,7 +469,7 @@ function renderRecentRentals() {
             
             row.innerHTML = `
                 <td>${rental.admissionNumber}</td>
-                <td>${rental.bookTitle} ${rental.bookNumber ? `(${rental.bookNumber})` : ''}</td>
+                <td>${rental.bookTitle} ${rental.bookNumber ? `<small style="color: var(--text-secondary);">(${rental.bookNumber})</small>` : ''}</td>
                 <td>${formatDate(rental.rentDate)}</td>
                 <td>${formatDate(rental.dueDate)}</td>
                 <td><span class="status-badge ${isOverdue ? 'status-overdue' : 'status-rented'}">${isOverdue ? 'Overdue' : 'Active'}</span></td>
@@ -554,39 +482,47 @@ function renderRecentRentals() {
 }
 
 // ========== BOOKS MANAGEMENT ==========
-function renderBooksTable() {
+function renderBooksTable(filteredBooks = null) {
     try {
         booksLoading.style.display = 'block';
         booksTableBody.innerHTML = '';
+        booksEmptyState.style.display = 'none';
         
-        if (books.length === 0) {
-            booksTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">No books found. Add your first book!</td></tr>';
+        const booksToRender = filteredBooks || books;
+        
+        if (booksToRender.length === 0) {
             booksLoading.style.display = 'none';
+            booksEmptyState.style.display = 'block';
             return;
         }
         
-        books.forEach(book => {
+        booksToRender.forEach(book => {
             const row = document.createElement('tr');
             const availableCopies = book.availableCopies || 0;
             const totalCopies = book.quantity || 1;
             const status = availableCopies > 0 ? 'available' : 'rented';
             const statusText = availableCopies > 0 ? `Available (${availableCopies}/${totalCopies})` : `All Rented (0/${totalCopies})`;
             
-            // Get book numbers array
             const bookNumbers = book.bookNumbers || [];
-            const bookNumbersText = bookNumbers.length > 0 ? bookNumbers.join(', ') : 'Not specified';
+            const bookNumbersText = bookNumbers.length > 0 
+                ? `<span title="${bookNumbers.join(', ')}">${bookNumbers.length} copies</span>`
+                : 'Not specified';
             
             row.innerHTML = `
-                <td>${book.barcode}</td>
-                <td>${book.title}</td>
+                <td><code style="background: var(--darker-bg); padding: 5px 10px; border-radius: 5px;">${book.barcode}</code></td>
+                <td><strong>${book.title}</strong></td>
                 <td>${book.author}</td>
-                <td>${book.category || 'Uncategorized'}</td>
+                <td><span class="status-badge" style="background: rgba(52, 152, 219, 0.2); color: var(--primary-color);">${book.category || 'Uncategorized'}</span></td>
                 <td>${bookNumbersText}</td>
                 <td><span class="status-badge status-${status}">${statusText}</span></td>
                 <td>
                     <div class="action-buttons">
-                        <button class="action-btn edit" onclick="editBook('${book.id}')">Edit</button>
-                        <button class="action-btn delete" onclick="deleteBook('${book.id}', '${book.title}')">Delete</button>
+                        <button class="action-btn edit" onclick="editBook('${book.id}')">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                        <button class="action-btn delete" onclick="deleteBook('${book.id}', '${book.title}')">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
                     </div>
                 </td>
             `;
@@ -599,13 +535,65 @@ function renderBooksTable() {
     }
 }
 
-// Add Book Modal - Enhanced with Generate Barcode button
+// Search functionality
+bookSearchInput.addEventListener('input', (e) => {
+    const searchTerm = e.target.value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        renderBooksTable();
+        return;
+    }
+    
+    const filteredBooks = books.filter(book => {
+        return (
+            (book.title && book.title.toLowerCase().includes(searchTerm)) ||
+            (book.author && book.author.toLowerCase().includes(searchTerm)) ||
+            (book.barcode && book.barcode.toLowerCase().includes(searchTerm)) ||
+            (book.category && book.category.toLowerCase().includes(searchTerm))
+        );
+    });
+    
+    renderBooksTable(filteredBooks);
+});
+
+// Filter functionality
+bookStatusFilter.addEventListener('change', (e) => {
+    const status = e.target.value;
+    
+    if (status === 'all') {
+        renderBooksTable();
+        return;
+    }
+    
+    const filteredBooks = books.filter(book => {
+        const availableCopies = book.availableCopies || 0;
+        const totalCopies = book.quantity || 1;
+        
+        switch(status) {
+            case 'available':
+                return availableCopies > 0;
+            case 'rented':
+                return availableCopies === 0;
+            case 'damaged':
+                return book.status === 'damaged';
+            case 'lost':
+                return book.status === 'lost';
+            default:
+                return true;
+        }
+    });
+    
+    renderBooksTable(filteredBooks);
+});
+
+// Add Book Modal
 addBookBtn.addEventListener('click', () => openAddBookModal());
+addBookEmptyBtn.addEventListener('click', () => openAddBookModal());
 
 function openAddBookModal(barcode = '') {
     try {
         currentBookToEdit = null;
-        modalTitle.textContent = 'Add New Book';
+        modalTitle.innerHTML = '<i class="fas fa-book"></i> Add New Book';
         modalBarcode.value = barcode;
         modalTitleInput.value = '';
         modalAuthor.value = '';
@@ -618,172 +606,9 @@ function openAddBookModal(barcode = '') {
         bookModalError.style.display = 'none';
         bookModal.style.display = 'flex';
         
-        // Add Generate Barcode button if not already present
-        if (!document.getElementById('generateBarcodeFromFormBtn')) {
-            const generateBtn = document.createElement('button');
-            generateBtn.id = 'generateBarcodeFromFormBtn';
-            generateBtn.type = 'button';
-            generateBtn.className = 'btn btn-success';
-            generateBtn.style.marginTop = '10px';
-            generateBtn.style.width = '100%';
-            generateBtn.innerHTML = '<i class="fas fa-barcode"></i> Generate Barcode from Book Details';
-            generateBtn.onclick = () => generateBarcodeFromForm();
-            
-            // Insert after barcode field
-            modalBarcode.parentNode.parentNode.appendChild(generateBtn);
-        }
+        modalTitleInput.focus();
     } catch (error) {
         handleError('openAddBookModal', error);
-    }
-}
-
-// Generate barcode from form data
-function generateBarcodeFromForm() {
-    try {
-        const title = modalTitleInput.value.trim();
-        const author = modalAuthor.value.trim();
-        const year = modalYear.value || new Date().getFullYear();
-        const category = modalCategory.value;
-        
-        if (!title || !author || !category) {
-            showError(bookModalError, 'Please fill in Title, Author, and Category to generate barcode.');
-            return;
-        }
-        
-        // Generate barcode
-        const barcode = generateUniqueBarcode(title, author, year, category);
-        modalBarcode.value = barcode;
-        
-        // Show success message
-        showSuccess(bookModalError, `Barcode generated: ${barcode}`);
-        
-        // Open barcode generator modal with pre-filled data
-        openBarcodeGenerator({
-            title: title,
-            author: author,
-            year: year,
-            category: category,
-            publisher: modalPublisher.value,
-            quantity: modalQuantity.value
-        });
-    } catch (error) {
-        handleError('generateBarcodeFromForm', error);
-    }
-}
-
-// Open Barcode Generator Modal
-function openBarcodeGenerator(prefilledData = null) {
-    try {
-        const generateBookTitle = document.getElementById('generateBookTitle');
-        const generateAuthor = document.getElementById('generateAuthor');
-        const generateYear = document.getElementById('generateYear');
-        const generateCategory = document.getElementById('generateCategory');
-        const generateQuantity = document.getElementById('generateQuantity');
-        const generatePublisher = document.getElementById('generatePublisher');
-        const barcodeGeneratorError = document.getElementById('barcodeGeneratorError');
-        const barcodeGeneratorSuccess = document.getElementById('barcodeGeneratorSuccess');
-        const downloadBarcodeBtn = document.getElementById('downloadBarcodeBtn');
-        const useGeneratedBarcodeBtn = document.getElementById('useGeneratedBarcodeBtn');
-        const barcodeText = document.getElementById('barcodeText');
-        
-        // Clear previous data
-        barcodeGeneratorError.style.display = 'none';
-        barcodeGeneratorSuccess.style.display = 'none';
-        barcodeText.textContent = '';
-        generatedBarcode = '';
-        generatedBookData = null;
-        downloadBarcodeBtn.disabled = true;
-        useGeneratedBarcodeBtn.disabled = true;
-        
-        // Fill with prefilled data if available
-        if (prefilledData) {
-            generateBookTitle.value = prefilledData.title || '';
-            generateAuthor.value = prefilledData.author || '';
-            generateYear.value = prefilledData.year || new Date().getFullYear();
-            generateCategory.value = prefilledData.category || '';
-            generateQuantity.value = prefilledData.quantity || 1;
-            generatePublisher.value = prefilledData.publisher || '';
-        } else {
-            generateBookTitle.value = '';
-            generateAuthor.value = '';
-            generateYear.value = new Date().getFullYear();
-            generateCategory.value = '';
-            generateQuantity.value = 1;
-            generatePublisher.value = '';
-        }
-        
-        barcodeGeneratorModal.style.display = 'flex';
-        
-        // Set up event listeners
-        document.getElementById('generateBarcodeBtn').onclick = () => {
-            const title = generateBookTitle.value.trim();
-            const author = generateAuthor.value.trim();
-            const year = generateYear.value || new Date().getFullYear();
-            const category = generateCategory.value;
-            
-            if (!title || !author || !category) {
-                showError(barcodeGeneratorError, 'Please fill in Title, Author, and Category.');
-                return;
-            }
-            
-            // Generate unique barcode
-            generatedBarcode = generateUniqueBarcode(title, author, year, category);
-            
-            // Store book data
-            generatedBookData = {
-                title: title,
-                author: author,
-                year: year,
-                category: category,
-                publisher: generatePublisher.value,
-                quantity: parseInt(generateQuantity.value) || 1
-            };
-            
-            // Generate and display barcode image
-            if (generateBarcodeImage(generatedBarcode, 'barcodeCanvas')) {
-                barcodeText.textContent = generatedBarcode;
-                downloadBarcodeBtn.disabled = false;
-                useGeneratedBarcodeBtn.disabled = false;
-                showSuccess(barcodeGeneratorSuccess, 'Barcode generated successfully!');
-            } else {
-                showError(barcodeGeneratorError, 'Failed to generate barcode image.');
-            }
-        };
-        
-        // Download barcode button
-        downloadBarcodeBtn.onclick = () => {
-            if (generatedBarcode && generatedBookData) {
-                downloadBarcode(generatedBarcode, generatedBookData.title);
-                showSuccess(barcodeGeneratorSuccess, 'Barcode downloaded!');
-            }
-        };
-        
-        // Use barcode button
-        useGeneratedBarcodeBtn.onclick = () => {
-            if (generatedBarcode && generatedBookData) {
-                // Close generator modal
-                barcodeGeneratorModal.style.display = 'none';
-                
-                // Fill the add book form with generated data
-                modalTitleInput.value = generatedBookData.title;
-                modalAuthor.value = generatedBookData.author;
-                modalBarcode.value = generatedBarcode;
-                modalYear.value = generatedBookData.year;
-                modalCategory.value = generatedBookData.category;
-                modalPublisher.value = generatedBookData.publisher;
-                modalQuantity.value = generatedBookData.quantity;
-                
-                showSuccess(bookModalError, 'Book details filled from generated barcode!');
-            }
-        };
-        
-        // Close button
-        document.getElementById('closeBarcodeGenerator').onclick = () => {
-            barcodeGeneratorModal.style.display = 'none';
-        };
-        
-    } catch (error) {
-        handleError('openBarcodeGenerator', error);
     }
 }
 
@@ -794,7 +619,7 @@ window.editBook = async function(bookId) {
         if (doc.exists) {
             const book = doc.data();
             currentBookToEdit = bookId;
-            modalTitle.textContent = 'Edit Book';
+            modalTitle.innerHTML = '<i class="fas fa-edit"></i> Edit Book';
             modalBarcode.value = book.barcode;
             modalTitleInput.value = book.title;
             modalAuthor.value = book.author;
@@ -815,9 +640,9 @@ window.editBook = async function(bookId) {
 // Delete Book
 window.deleteBook = async function(bookId, bookTitle) {
     try {
-        if (confirm(`Are you sure you want to delete "${bookTitle}" and all its copies?`)) {
+        if (confirm(`Are you sure you want to delete "${bookTitle}" and all its copies? This action cannot be undone.`)) {
             await db.collection('books').doc(bookId).delete();
-            alert('Book deleted successfully.');
+            showSuccess(null, 'Book deleted successfully.');
         }
     } catch (error) {
         handleError('deleteBook', error);
@@ -843,8 +668,8 @@ bookForm.addEventListener('submit', async (e) => {
             year: parseInt(modalYear.value) || new Date().getFullYear(),
             category: modalCategory.value,
             status: modalStatus.value,
-            availableCopies: quantity, // All copies available initially
-            rentedCopies: [], // Array to track which copies are rented
+            availableCopies: quantity,
+            rentedCopies: [],
             updatedAt: new Date().toISOString()
         };
         
@@ -875,7 +700,8 @@ bookForm.addEventListener('submit', async (e) => {
                 await db.collection('books').doc(existingBookDoc.id).update({
                     quantity: newQuantity,
                     availableCopies: firebase.firestore.FieldValue.increment(quantity),
-                    bookNumbers: newBookNumbers
+                    bookNumbers: newBookNumbers,
+                    updatedAt: new Date().toISOString()
                 });
                 
                 showSuccess(bookModalError, `Added ${quantity} copies to existing book.`);
@@ -886,7 +712,10 @@ bookForm.addEventListener('submit', async (e) => {
             }
         }
         
-        setTimeout(() => bookModal.style.display = 'none', 1500);
+        setTimeout(() => {
+            bookModal.style.display = 'none';
+            bookModalError.style.display = 'none';
+        }, 1500);
     } catch (error) {
         handleError('saveBook', error);
     }
@@ -894,6 +723,321 @@ bookForm.addEventListener('submit', async (e) => {
 
 closeBookModal.addEventListener('click', () => bookModal.style.display = 'none');
 cancelBookBtn.addEventListener('click', () => bookModal.style.display = 'none');
+
+// ========== BARCODE SCANNER FUNCTIONS ==========
+function initBarcodeScanner() {
+    if ('BarcodeDetector' in window) {
+        try {
+            barcodeDetector = new BarcodeDetector({ 
+                formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'codabar'] 
+            });
+        } catch (error) {
+            console.error('BarcodeDetector initialization error:', error);
+        }
+    }
+}
+
+async function getCameras() {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        
+        cameraSelect.innerHTML = '<option value="">Select Camera...</option>';
+        videoDevices.forEach((device, index) => {
+            const option = document.createElement('option');
+            option.value = device.deviceId;
+            option.text = device.label || `Camera ${index + 1}`;
+            cameraSelect.appendChild(option);
+        });
+        
+        return videoDevices.length > 0;
+    } catch (error) {
+        console.error('Error getting cameras:', error);
+        return false;
+    }
+}
+
+async function startCamera(deviceId = '') {
+    stopCamera();
+    
+    try {
+        const constraints = {
+            video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+                facingMode: 'environment'
+            }
+        };
+        
+        if (deviceId) constraints.video.deviceId = { exact: deviceId };
+        
+        scannerStream = await navigator.mediaDevices.getUserMedia(constraints);
+        scannerVideo.srcObject = scannerStream;
+        scannerVideo.play();
+        
+        detectBarcodes();
+        return true;
+    } catch (error) {
+        alert('Cannot access camera. Please check permissions and ensure no other app is using the camera.');
+        return false;
+    }
+}
+
+function stopCamera() {
+    if (scannerStream) {
+        scannerStream.getTracks().forEach(track => track.stop());
+        scannerStream = null;
+    }
+    if (scannerVideo.srcObject) scannerVideo.srcObject = null;
+}
+
+async function detectBarcodes() {
+    if (!barcodeDetector || !scannerVideo.srcObject) return;
+    
+    try {
+        const barcodes = await barcodeDetector.detect(scannerVideo);
+        
+        if (barcodes.length > 0) {
+            const barcode = barcodes[0];
+            showBarcodeResult(barcode.rawValue);
+        } else {
+            requestAnimationFrame(detectBarcodes);
+        }
+    } catch (error) {
+        setTimeout(() => detectBarcodes(), 100);
+    }
+}
+
+function showBarcodeResult(barcode) {
+    detectedBarcodeSpan.textContent = barcode;
+    scannerResult.style.display = 'block';
+    stopCamera();
+}
+
+function resetScanner() {
+    scannerResult.style.display = 'none';
+    detectedBarcodeSpan.textContent = '';
+    manualBarcodeInput.value = '';
+    startCamera(cameraSelect.value);
+}
+
+function useDetectedBarcode(barcode) {
+    let targetInput = null;
+    
+    switch(currentScannerContext) {
+        case 'addBook':
+            targetInput = modalBarcode;
+            break;
+        case 'rentBook':
+            targetInput = bookBarcodeInput;
+            break;
+        case 'returnBook':
+            targetInput = returnBarcodeInput;
+            break;
+    }
+    
+    if (targetInput) {
+        targetInput.value = barcode;
+        targetInput.focus();
+        
+        // Auto-trigger check for rent and return contexts
+        if (currentScannerContext === 'rentBook' && bookBarcodeInput.value) {
+            setTimeout(() => checkBookBtn.click(), 500);
+        } else if (currentScannerContext === 'returnBook' && returnBarcodeInput.value) {
+            setTimeout(() => checkReturnBtn.click(), 500);
+        }
+    }
+    
+    barcodeScannerModal.style.display = 'none';
+    stopCamera();
+}
+
+async function openBarcodeScanner(context = 'addBook') {
+    currentScannerContext = context;
+    
+    scannerResult.style.display = 'none';
+    detectedBarcodeSpan.textContent = '';
+    manualBarcodeInput.value = '';
+    
+    const hasCameras = await getCameras();
+    if (hasCameras) {
+        barcodeScannerModal.style.display = 'flex';
+        setTimeout(() => startCamera(), 100);
+    } else {
+        alert('No cameras found. Please check your device.');
+    }
+}
+
+// Scanner Event Listeners
+closeScannerModal.addEventListener('click', () => {
+    barcodeScannerModal.style.display = 'none';
+    stopCamera();
+});
+
+cameraSelect.addEventListener('change', (e) => {
+    if (e.target.value) startCamera(e.target.value);
+});
+
+useBarcodeBtn.addEventListener('click', () => {
+    const barcode = detectedBarcodeSpan.textContent;
+    if (barcode) useDetectedBarcode(barcode);
+});
+
+scanAgainBtn.addEventListener('click', resetScanner);
+
+manualSubmitBtn.addEventListener('click', () => {
+    const barcode = manualBarcodeInput.value.trim();
+    if (barcode) {
+        useDetectedBarcode(barcode);
+    } else {
+        alert('Please enter a barcode');
+    }
+});
+
+manualBarcodeInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') manualSubmitBtn.click();
+});
+
+// Scanner button event listeners
+scanModalBarcodeBtn.addEventListener('click', () => openBarcodeScanner('addBook'));
+scanBookBarcodeBtn.addEventListener('click', () => openBarcodeScanner('rentBook'));
+scanReturnBarcodeBtn.addEventListener('click', () => openBarcodeScanner('returnBook'));
+
+// ========== BARCODE GENERATOR FUNCTIONS ==========
+generateBarcodeToolBtn.addEventListener('click', () => openBarcodeGenerator());
+generateModalBarcodeBtn.addEventListener('click', () => {
+    // If we're in the add book modal, use existing data
+    if (modalTitleInput.value && modalAuthor.value && modalCategory.value) {
+        openBarcodeGenerator({
+            title: modalTitleInput.value,
+            author: modalAuthor.value,
+            year: modalYear.value,
+            category: modalCategory.value,
+            publisher: modalPublisher.value,
+            quantity: modalQuantity.value
+        });
+    } else {
+        openBarcodeGenerator();
+    }
+});
+
+generateBookBarcodeBtn.addEventListener('click', () => openBarcodeGenerator());
+
+function openBarcodeGenerator(prefilledData = null) {
+    try {
+        // Reset form
+        barcodeGeneratorError.style.display = 'none';
+        barcodeGeneratorSuccess.style.display = 'none';
+        barcodeCanvasContainer.style.display = 'none';
+        barcodePlaceholder.style.display = 'block';
+        barcodeText.textContent = '';
+        generatedBarcode = '';
+        generatedBookData = null;
+        downloadBarcodeBtn.disabled = true;
+        useGeneratedBarcodeBtn.disabled = true;
+        
+        // Fill with prefilled data if available
+        if (prefilledData) {
+            generateBookTitle.value = prefilledData.title || '';
+            generateAuthor.value = prefilledData.author || '';
+            generateYear.value = prefilledData.year || new Date().getFullYear();
+            generateCategory.value = prefilledData.category || '';
+            generateQuantity.value = prefilledData.quantity || 1;
+            generatePublisher.value = prefilledData.publisher || '';
+        } else {
+            generateBookTitle.value = '';
+            generateAuthor.value = '';
+            generateYear.value = new Date().getFullYear();
+            generateCategory.value = '';
+            generateQuantity.value = 1;
+            generatePublisher.value = '';
+        }
+        
+        barcodeGeneratorModal.style.display = 'flex';
+        generateBookTitle.focus();
+    } catch (error) {
+        handleError('openBarcodeGenerator', error);
+    }
+}
+
+// Barcode Generator Button Events
+generateBarcodeBtn.addEventListener('click', () => {
+    const title = generateBookTitle.value.trim();
+    const author = generateAuthor.value.trim();
+    const year = generateYear.value || new Date().getFullYear();
+    const category = generateCategory.value;
+    
+    if (!title || !author || !category) {
+        showError(barcodeGeneratorError, 'Please fill in Title, Author, and Category.');
+        return;
+    }
+    
+    // Generate unique barcode
+    generatedBarcode = generateUniqueBarcode(title, author, year, category);
+    
+    // Store book data
+    generatedBookData = {
+        title: title,
+        author: author,
+        year: year,
+        category: category,
+        publisher: generatePublisher.value,
+        quantity: parseInt(generateQuantity.value) || 1
+    };
+    
+    // Generate and display barcode image
+    if (generateBarcodeImage(generatedBarcode)) {
+        downloadBarcodeBtn.disabled = false;
+        useGeneratedBarcodeBtn.disabled = false;
+        showSuccess(barcodeGeneratorSuccess, 'Barcode generated successfully!');
+    } else {
+        showError(barcodeGeneratorError, 'Failed to generate barcode image.');
+    }
+});
+
+downloadBarcodeBtn.addEventListener('click', () => {
+    if (generatedBarcode && generatedBookData) {
+        if (downloadBarcode(generatedBarcode, generatedBookData.title)) {
+            showSuccess(barcodeGeneratorSuccess, 'Barcode downloaded!');
+        }
+    }
+});
+
+useGeneratedBarcodeBtn.addEventListener('click', () => {
+    if (generatedBarcode && generatedBookData) {
+        // Close generator modal
+        barcodeGeneratorModal.style.display = 'none';
+        
+        // If book modal is open, fill it
+        if (bookModal.style.display === 'flex') {
+            modalTitleInput.value = generatedBookData.title;
+            modalAuthor.value = generatedBookData.author;
+            modalBarcode.value = generatedBarcode;
+            modalYear.value = generatedBookData.year;
+            modalCategory.value = generatedBookData.category;
+            modalPublisher.value = generatedBookData.publisher;
+            modalQuantity.value = generatedBookData.quantity;
+            
+            showSuccess(bookModalError, 'Book details filled from generated barcode!');
+        }
+        // If we're in rent section, fill it
+        else if (document.getElementById('rentSection').classList.contains('active')) {
+            bookBarcodeInput.value = generatedBarcode;
+            bookTitleInput.value = generatedBookData.title;
+            setTimeout(() => checkBookBtn.click(), 500);
+            
+            showSuccess(rentError, 'Barcode applied! Please check the book.');
+        }
+    }
+});
+
+closeBarcodeGenerator.addEventListener('click', () => {
+    barcodeGeneratorModal.style.display = 'none';
+});
+
+cancelBarcodeBtn.addEventListener('click', () => {
+    barcodeGeneratorModal.style.display = 'none';
+});
 
 // ========== RENT BOOK FUNCTIONS ==========
 checkUserBtn.addEventListener('click', async () => {
@@ -936,7 +1080,6 @@ checkBookBtn.addEventListener('click', async () => {
                 showError(rentError, 'No copies available for rent.');
                 rentBookBtn.disabled = true;
             } else {
-                // Show available copies for selection
                 showSuccess(rentError, `Book found: ${book.title} by ${book.author}. ${book.availableCopies} copies available.`);
                 
                 // If there are multiple copies, open the copy selection modal
@@ -960,12 +1103,6 @@ checkBookBtn.addEventListener('click', async () => {
 // Book Copy Selection Modal
 function openBookCopyModal(book) {
     try {
-        const copyBookTitle = document.getElementById('copyBookTitle');
-        const copyBookAuthor = document.getElementById('copyBookAuthor');
-        const copyCount = document.getElementById('copyCount');
-        const copySelect = document.getElementById('copySelect');
-        const copyModalError = document.getElementById('copyModalError');
-        
         copyBookTitle.textContent = book.title;
         copyBookAuthor.textContent = book.author;
         copyCount.textContent = book.availableCopies || 0;
@@ -989,35 +1126,26 @@ function openBookCopyModal(book) {
         copyModalError.style.display = 'none';
         bookCopyModal.style.display = 'flex';
         
+        // Clear any previous event listeners
+        const newConfirmBtn = confirmCopyBtn.cloneNode(true);
+        confirmCopyBtn.parentNode.replaceChild(newConfirmBtn, confirmCopyBtn);
+        
         // Store selected book copy
-        let selectedCopy = null;
         copySelect.addEventListener('change', (e) => {
-            selectedCopy = e.target.value;
+            currentBookForRent.selectedCopy = e.target.value;
         });
         
         // Confirm button
-        document.getElementById('confirmCopyBtn').onclick = () => {
-            if (!selectedCopy) {
+        newConfirmBtn.addEventListener('click', () => {
+            if (!currentBookForRent.selectedCopy) {
                 showError(copyModalError, 'Please select a book copy.');
                 return;
             }
             
-            // Store the selected copy for rental
-            currentBookForRent.selectedCopy = selectedCopy;
             bookCopyModal.style.display = 'none';
             rentBookBtn.disabled = false;
-            showSuccess(rentError, `Selected copy: ${selectedCopy}. Ready to rent.`);
-        };
-        
-        // Cancel button
-        document.getElementById('cancelCopyBtn').onclick = () => {
-            bookCopyModal.style.display = 'none';
-        };
-        
-        // Close button
-        document.getElementById('closeCopyModal').onclick = () => {
-            bookCopyModal.style.display = 'none';
-        };
+            showSuccess(rentError, `Selected copy: ${currentBookForRent.selectedCopy}. Ready to rent.`);
+        });
         
     } catch (error) {
         handleError('openBookCopyModal', error);
@@ -1083,7 +1211,8 @@ rentBookBtn.addEventListener('click', async () => {
         
         // Update book availability
         const updateData = {
-            availableCopies: firebase.firestore.FieldValue.increment(-1)
+            availableCopies: firebase.firestore.FieldValue.increment(-1),
+            updatedAt: new Date().toISOString()
         };
         
         // If there's a specific book number, add it to rentedCopies array
@@ -1115,7 +1244,14 @@ function renderActiveRentals() {
         const activeRentals = rentals.filter(rental => rental.status === 'active');
         
         if (activeRentals.length === 0) {
-            activeRentalsBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">No active rentals found</td></tr>';
+            activeRentalsBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <i class="fas fa-clock"></i>
+                        <p>No active rentals found</p>
+                    </td>
+                </tr>
+            `;
             return;
         }
         
@@ -1125,14 +1261,20 @@ function renderActiveRentals() {
             const today = new Date();
             const daysLeft = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
             const daysLeftText = daysLeft > 0 ? `${daysLeft} days` : 'Overdue';
+            const isOverdue = daysLeft < 0;
             
             row.innerHTML = `
                 <td>${rental.admissionNumber}</td>
-                <td>${rental.bookTitle} ${rental.bookNumber ? `(${rental.bookNumber})` : ''}</td>
+                <td>${rental.bookTitle}</td>
+                <td>${rental.bookNumber || 'N/A'}</td>
                 <td>${formatDate(rental.rentDate)}</td>
                 <td>${formatDate(rental.dueDate)}</td>
-                <td><span class="${daysLeft <= 3 ? 'status-overdue' : ''}">${daysLeftText}</span></td>
-                <td><button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button></td>
+                <td><span class="${isOverdue ? 'status-overdue' : ''}">${daysLeftText}</span></td>
+                <td>
+                    <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">
+                        <i class="fas fa-undo"></i> Return
+                    </button>
+                </td>
             `;
             activeRentalsBody.appendChild(row);
         });
@@ -1151,7 +1293,14 @@ function renderOverdueBooks() {
         );
         
         if (overdueRentals.length === 0) {
-            overdueTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">No overdue books found</td></tr>';
+            overdueTableBody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="empty-state">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <p>No overdue books found</p>
+                    </td>
+                </tr>
+            `;
             return;
         }
         
@@ -1163,10 +1312,15 @@ function renderOverdueBooks() {
             row.innerHTML = `
                 <td>${rental.admissionNumber}</td>
                 <td>${rental.userName}</td>
-                <td>${rental.bookTitle} ${rental.bookNumber ? `(${rental.bookNumber})` : ''}</td>
+                <td>${rental.bookTitle}</td>
+                <td>${rental.bookNumber || 'N/A'}</td>
                 <td>${formatDate(rental.dueDate)}</td>
                 <td><span class="status-overdue">${daysOverdue} days</span></td>
-                <td><button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button></td>
+                <td>
+                    <button class="action-btn edit" onclick="prepareReturn('${rental.id}')">
+                        <i class="fas fa-undo"></i> Return
+                    </button>
+                </td>
             `;
             overdueTableBody.appendChild(row);
         });
@@ -1250,7 +1404,8 @@ confirmReturnBtn.addEventListener('click', async () => {
         
         // Update book availability
         const updateData = {
-            availableCopies: firebase.firestore.FieldValue.increment(1)
+            availableCopies: firebase.firestore.FieldValue.increment(1),
+            updatedAt: new Date().toISOString()
         };
         
         // If there's a specific book number, remove it from rentedCopies array
@@ -1284,6 +1439,10 @@ returnBookBtn.addEventListener('click', () => {
 
 closeReturnModal.addEventListener('click', () => returnModal.style.display = 'none');
 cancelReturnBtn.addEventListener('click', () => returnModal.style.display = 'none');
+
+// Book Copy Modal Close
+closeCopyModal.addEventListener('click', () => bookCopyModal.style.display = 'none');
+cancelCopyBtn.addEventListener('click', () => bookCopyModal.style.display = 'none');
 
 // ========== REPORTS ==========
 async function loadReports() {
@@ -1332,7 +1491,7 @@ async function loadReports() {
         for (const [category, stats] of Object.entries(categories)) {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${category}</td>
+                <td><strong>${category}</strong></td>
                 <td>${stats.total}</td>
                 <td>${stats.available}</td>
                 <td>${stats.rented}</td>
@@ -1374,16 +1533,23 @@ async function loadReports() {
             
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${title}</td>
+                <td><strong>${title}</strong></td>
                 <td>${author}</td>
-                <td>${count}</td>
-                <td>${currentlyRented ? 'Yes' : 'No'}</td>
+                <td><span class="status-badge" style="background: rgba(52, 152, 219, 0.2); color: var(--primary-color);">${count}</span></td>
+                <td>${currentlyRented ? '<span class="status-badge status-rented">Yes</span>' : '<span class="status-badge status-available">No</span>'}</td>
             `;
             popularBooksBody.appendChild(row);
         });
         
         if (popularBooks.length === 0) {
-            popularBooksBody.innerHTML = '<tr><td colspan="4" style="text-align: center; padding: 30px;">No rental history yet</td></tr>';
+            popularBooksBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="empty-state">
+                        <i class="fas fa-star"></i>
+                        <p>No rental history yet</p>
+                    </td>
+                </tr>
+            `;
         }
     } catch (error) {
         handleError('loadReports', error);
@@ -1392,214 +1558,16 @@ async function loadReports() {
 
 refreshReportsBtn.addEventListener('click', () => loadReports());
 
-// ========== BARCODE SCANNER ==========
-function initBarcodeScanner() {
-    if ('BarcodeDetector' in window) {
-        try {
-            barcodeDetector = new BarcodeDetector({ 
-                formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'code_93', 'codabar'] 
-            });
-        } catch (error) {
-            console.error('BarcodeDetector error:', error);
-        }
-    }
-}
-
-async function getCameras() {
-    try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = devices.filter(device => device.kind === 'videoinput');
-        
-        cameraSelect.innerHTML = '<option value="">Select Camera...</option>';
-        videoDevices.forEach((device, index) => {
-            const option = document.createElement('option');
-            option.value = device.deviceId;
-            option.text = device.label || `Camera ${index + 1}`;
-            cameraSelect.appendChild(option);
-        });
-        
-        return videoDevices.length > 0;
-    } catch (error) {
-        console.error('Error getting cameras:', error);
-        return false;
-    }
-}
-
-async function startCamera(deviceId = '') {
-    stopCamera();
-    
-    try {
-        const constraints = {
-            video: {
-                width: { ideal: 1280 },
-                height: { ideal: 720 },
-                facingMode: 'environment'
-            }
-        };
-        
-        if (deviceId) constraints.video.deviceId = { exact: deviceId };
-        
-        scannerStream = await navigator.mediaDevices.getUserMedia(constraints);
-        scannerVideo.srcObject = scannerStream;
-        scannerVideo.play();
-        
-        detectBarcodes();
-        return true;
-    } catch (error) {
-        alert('Cannot access camera. Please check permissions.');
-        return false;
-    }
-}
-
-function stopCamera() {
-    if (scannerStream) {
-        scannerStream.getTracks().forEach(track => track.stop());
-        scannerStream = null;
-    }
-    if (scannerVideo.srcObject) scannerVideo.srcObject = null;
-}
-
-async function detectBarcodes() {
-    if (!barcodeDetector || !scannerVideo.srcObject) return;
-    
-    try {
-        const barcodes = await barcodeDetector.detect(scannerVideo);
-        
-        if (barcodes.length > 0) {
-            const barcode = barcodes[0];
-            showBarcodeResult(barcode.rawValue);
-        } else {
-            requestAnimationFrame(detectBarcodes);
-        }
-    } catch (error) {
-        setTimeout(() => detectBarcodes(), 100);
-    }
-}
-
-function showBarcodeResult(barcode) {
-    detectedBarcodeSpan.textContent = barcode;
-    scannerResult.style.display = 'block';
-    stopCamera();
-}
-
-function resetScanner() {
-    scannerResult.style.display = 'none';
-    detectedBarcodeSpan.textContent = '';
-    manualBarcodeInput.value = '';
-    startCamera(cameraSelect.value);
-}
-
-function useDetectedBarcode(barcode) {
-    if (currentScannerContext === 'addBook' && modalBarcode) {
-        modalBarcode.value = barcode;
-        modalBarcode.focus();
-    } else if (currentScannerContext === 'rentBook' && bookBarcodeInput) {
-        bookBarcodeInput.value = barcode;
-        bookBarcodeInput.focus();
-        setTimeout(() => checkBookBtn.click(), 500);
-    } else if (currentScannerContext === 'returnBook' && returnBarcodeInput) {
-        returnBarcodeInput.value = barcode;
-        returnBarcodeInput.focus();
-        setTimeout(() => checkReturnBtn.click(), 500);
-    }
-    
-    barcodeScannerModal.style.display = 'none';
-    stopCamera();
-}
-
-async function openBarcodeScanner(context = 'addBook') {
-    currentScannerContext = context;
-    
-    scannerResult.style.display = 'none';
-    detectedBarcodeSpan.textContent = '';
-    manualBarcodeInput.value = '';
-    
-    const hasCameras = await getCameras();
-    if (hasCameras) {
-        barcodeScannerModal.style.display = 'flex';
-        setTimeout(() => startCamera(), 100);
-    } else {
-        alert('No cameras found. Please check your device.');
-    }
-}
-
-// Scanner Event Listeners
-closeScannerModal.addEventListener('click', () => {
-    barcodeGeneratorModal.style.display = 'none';
-    stopCamera();
-});
-
-cameraSelect.addEventListener('change', (e) => {
-    if (e.target.value) startCamera(e.target.value);
-});
-
-useBarcodeBtn.addEventListener('click', () => {
-    const barcode = detectedBarcodeSpan.textContent;
-    if (barcode) useDetectedBarcode(barcode);
-});
-
-scanAgainBtn.addEventListener('click', resetScanner);
-
-manualSubmitBtn.addEventListener('click', () => {
-    const barcode = manualBarcodeInput.value.trim();
-    if (barcode) {
-        useDetectedBarcode(barcode);
-    } else {
-        alert('Please enter a barcode');
-    }
-});
-
-manualBarcodeInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') manualSubmitBtn.click();
-});
-
-// Add scanner buttons to forms
-function addScannerButtons() {
-    if (bookBarcodeInput && bookBarcodeInput.parentNode) {
-        const scanBtn = document.createElement('button');
-        scanBtn.type = 'button';
-        scanBtn.className = 'btn';
-        scanBtn.innerHTML = '<i class="fas fa-camera"></i> Scan';
-        scanBtn.style.marginLeft = '10px';
-        scanBtn.onclick = () => openBarcodeScanner('rentBook');
-        bookBarcodeInput.parentNode.appendChild(scanBtn);
-    }
-    
-    if (returnBarcodeInput && returnBarcodeInput.parentNode) {
-        const scanBtn = document.createElement('button');
-        scanBtn.type = 'button';
-        scanBtn.className = 'btn';
-        scanBtn.innerHTML = '<i class="fas fa-camera"></i> Scan';
-        scanBtn.style.marginLeft = '10px';
-        scanBtn.onclick = () => openBarcodeScanner('returnBook');
-        returnBarcodeInput.parentNode.appendChild(scanBtn);
-    }
-    
-    // Add Generate Barcode button to the Books section header
-    const booksSectionHeader = document.querySelector('#booksSection .section-header');
-    if (booksSectionHeader && !document.getElementById('generateBarcodeToolBtn')) {
-        const generateBarcodeBtn = document.createElement('button');
-        generateBarcodeBtn.id = 'generateBarcodeToolBtn';
-        generateBarcodeBtn.className = 'btn btn-success';
-        generateBarcodeBtn.style.marginRight = '10px';
-        generateBarcodeBtn.innerHTML = '<i class="fas fa-barcode"></i> Generate Barcode';
-        generateBarcodeBtn.onclick = () => openBarcodeGenerator();
-        
-        booksSectionHeader.insertBefore(generateBarcodeBtn, addBookBtn);
-    }
-}
-
 // ========== INITIALIZATION ==========
 window.addEventListener('load', () => {
     try {
+        // Set today's date for rent
         const today = new Date().toISOString().split('T')[0];
         if (rentDateInput) rentDateInput.value = today;
         
         const dueDate = new Date();
         dueDate.setDate(dueDate.getDate() + 14);
         if (dueDateInput) dueDateInput.value = dueDate.toISOString().split('T')[0];
-        
-        addScannerButtons();
         
         // Auto-check functionality
         admissionNumberInput?.addEventListener('blur', () => {
@@ -1614,13 +1582,24 @@ window.addEventListener('load', () => {
             if (returnBarcodeInput.value.trim()) checkReturnBtn.click();
         });
         
-        // Load JsBarcode library dynamically
-        if (!window.JsBarcode) {
-            const script = document.createElement('script');
-            script.src = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js';
-            script.onload = () => console.log('JsBarcode loaded successfully');
-            document.head.appendChild(script);
-        }
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'k' && !e.target.matches('input, select, textarea')) {
+                e.preventDefault();
+                bookSearchInput.focus();
+            }
+            
+            if (e.key === 'Escape') {
+                if (bookModal.style.display === 'flex') bookModal.style.display = 'none';
+                if (barcodeScannerModal.style.display === 'flex') barcodeScannerModal.style.display = 'none';
+                if (barcodeGeneratorModal.style.display === 'flex') barcodeGeneratorModal.style.display = 'none';
+                if (returnModal.style.display === 'flex') returnModal.style.display = 'none';
+                if (bookCopyModal.style.display === 'flex') bookCopyModal.style.display = 'none';
+            }
+        });
+        
+        console.log('Library Management System initialized successfully!');
+        
     } catch (error) {
         handleError('initialization', error);
     }
