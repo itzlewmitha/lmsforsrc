@@ -112,9 +112,39 @@ const scanAgainBtn = document.getElementById('scanAgainBtn');
 const manualBarcodeInput = document.getElementById('manualBarcode');
 const manualSubmitBtn = document.getElementById('manualSubmitBtn');
 
+// NEW: Book Copy Selection Modal
+const bookCopyModal = document.createElement('div');
+bookCopyModal.className = 'modal';
+bookCopyModal.innerHTML = `
+    <div class="modal-content">
+        <button class="modal-close" id="closeCopyModal">&times;</button>
+        <div class="modal-header">
+            <h3>Select Book Copy</h3>
+        </div>
+        <div id="copyModalError" class="error-message"></div>
+        <div style="margin-bottom: 20px;">
+            <p><strong>Book:</strong> <span id="copyBookTitle"></span></p>
+            <p><strong>Author:</strong> <span id="copyBookAuthor"></span></p>
+            <p><strong>Available Copies:</strong> <span id="copyCount"></span></p>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <label for="copySelect">Select Book Number:</label>
+            <select id="copySelect" style="width: 100%; padding: 10px; margin-top: 5px;">
+                <option value="">Select a book copy...</option>
+            </select>
+        </div>
+        <div class="form-buttons">
+            <button type="button" id="cancelCopyBtn" class="btn btn-danger">Cancel</button>
+            <button type="button" id="confirmCopyBtn" class="btn">Select & Continue</button>
+        </div>
+    </div>
+`;
+document.body.appendChild(bookCopyModal);
+
 // Global Variables
 let currentBookToEdit = null;
 let currentRentalToReturn = null;
+let currentBookForRent = null; // Store book data when preparing to rent
 let books = [];
 let users = [];
 let rentals = [];
@@ -124,6 +154,7 @@ let rentalsUnsubscribe = null;
 let scannerStream = null;
 let barcodeDetector = null;
 let currentScannerContext = 'addBook';
+let availableCopies = []; // Store available book copies for selection
 
 // ========== UTILITY FUNCTIONS ==========
 function showLogin() {
@@ -175,6 +206,15 @@ function daysBetween(date1, date2) {
 function handleError(context, error) {
     console.error(`Error in ${context}:`, error);
     alert(`Error: ${error.message || 'Something went wrong. Please try again.'}`);
+}
+
+// Generate unique book numbers for each copy
+function generateBookNumbers(baseNumber, quantity) {
+    const numbers = [];
+    for (let i = 1; i <= quantity; i++) {
+        numbers.push(`${baseNumber}-COPY${i.toString().padStart(2, '0')}`);
+    }
+    return numbers;
 }
 
 // ========== AUTHENTICATION ==========
@@ -318,6 +358,9 @@ async function loadDashboardData() {
         overdueBooksEl.textContent = overdueCount;
         registeredUsersEl.textContent = users.length;
         
+        // Update available copies stat
+        document.getElementById('availableCopies').textContent = availableCopiesCount;
+        
         renderRecentRentals();
     } catch (error) {
         handleError('loadDashboardData', error);
@@ -345,7 +388,7 @@ function renderRecentRentals() {
             
             row.innerHTML = `
                 <td>${rental.admissionNumber}</td>
-                <td>${rental.bookTitle}</td>
+                <td>${rental.bookTitle} ${rental.bookNumber ? `(${rental.bookNumber})` : ''}</td>
                 <td>${formatDate(rental.rentDate)}</td>
                 <td>${formatDate(rental.dueDate)}</td>
                 <td><span class="status-badge ${isOverdue ? 'status-overdue' : 'status-rented'}">${isOverdue ? 'Overdue' : 'Active'}</span></td>
@@ -364,7 +407,7 @@ function renderBooksTable() {
         booksTableBody.innerHTML = '';
         
         if (books.length === 0) {
-            booksTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No books found. Add your first book!</td></tr>';
+            booksTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">No books found. Add your first book!</td></tr>';
             booksLoading.style.display = 'none';
             return;
         }
@@ -376,11 +419,16 @@ function renderBooksTable() {
             const status = availableCopies > 0 ? 'available' : 'rented';
             const statusText = availableCopies > 0 ? `Available (${availableCopies}/${totalCopies})` : `All Rented (0/${totalCopies})`;
             
+            // Get book numbers array
+            const bookNumbers = book.bookNumbers || [];
+            const bookNumbersText = bookNumbers.length > 0 ? bookNumbers.join(', ') : 'Not specified';
+            
             row.innerHTML = `
                 <td>${book.barcode}</td>
                 <td>${book.title}</td>
                 <td>${book.author}</td>
                 <td>${book.category || 'Uncategorized'}</td>
+                <td>${bookNumbersText}</td>
                 <td><span class="status-badge status-${status}">${statusText}</span></td>
                 <td>
                     <div class="action-buttons">
@@ -409,7 +457,7 @@ function openAddBookModal(barcode = '') {
         modalTitleInput.value = '';
         modalAuthor.value = '';
         modalQuantity.value = 1;
-        modalPublisher.value = '';
+        modalbooknumber.value = 'LIB';
         modalPublisher.value = '';
         modalYear.value = new Date().getFullYear();
         modalCategory.value = '';
@@ -433,7 +481,7 @@ window.editBook = async function(bookId) {
             modalTitleInput.value = book.title;
             modalAuthor.value = book.author;
             modalQuantity.value = book.quantity || 1;
-            modalPublisher.value = '';
+            modalbooknumber.value = book.baseBookNumber || 'LIB';
             modalPublisher.value = book.publisher || '';
             modalYear.value = book.year || new Date().getFullYear();
             modalCategory.value = book.category || '';
@@ -449,7 +497,7 @@ window.editBook = async function(bookId) {
 // Delete Book
 window.deleteBook = async function(bookId, bookTitle) {
     try {
-        if (confirm(`Are you sure you want to delete "${bookTitle}"?`)) {
+        if (confirm(`Are you sure you want to delete "${bookTitle}" and all its copies?`)) {
             await db.collection('books').doc(bookId).delete();
             alert('Book deleted successfully.');
         }
@@ -463,17 +511,22 @@ bookForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
     try {
+        const quantity = parseInt(modalQuantity.value) || 1;
+        const baseBookNumber = modalbooknumber.value.trim() || 'LIB';
+        
         const bookData = {
             barcode: modalBarcode.value.trim(),
             title: modalTitleInput.value.trim(),
             author: modalAuthor.value.trim(),
-            quantity: parseInt(modalQuantity.value) || 1,
-            booknumber: modalbooknumber.value .trim(),
+            quantity: quantity,
+            baseBookNumber: baseBookNumber,
+            bookNumbers: generateBookNumbers(baseBookNumber, quantity),
             publisher: modalPublisher.value.trim(),
             year: parseInt(modalYear.value) || new Date().getFullYear(),
             category: modalCategory.value,
             status: modalStatus.value,
-            availableCopies: parseInt(modalQuantity.value) || 1,
+            availableCopies: quantity, // All copies available initially
+            rentedCopies: [], // Array to track which copies are rented
             updatedAt: new Date().toISOString()
         };
         
@@ -497,12 +550,17 @@ bookForm.addEventListener('submit', async (e) => {
                 const existingBookDoc = existingBookSnapshot.docs[0];
                 const existingBook = existingBookDoc.data();
                 
+                // Update existing book with more copies
+                const newQuantity = existingBook.quantity + quantity;
+                const newBookNumbers = [...(existingBook.bookNumbers || []), ...bookData.bookNumbers];
+                
                 await db.collection('books').doc(existingBookDoc.id).update({
-                    quantity: firebase.firestore.FieldValue.increment(bookData.quantity),
-                    availableCopies: firebase.firestore.FieldValue.increment(bookData.quantity)
+                    quantity: newQuantity,
+                    availableCopies: firebase.firestore.FieldValue.increment(quantity),
+                    bookNumbers: newBookNumbers
                 });
                 
-                showSuccess(bookModalError, `Added ${bookData.quantity} copies to existing book.`);
+                showSuccess(bookModalError, `Added ${quantity} copies to existing book.`);
             } else {
                 bookData.createdAt = new Date().toISOString();
                 await db.collection('books').doc(bookData.barcode).set(bookData);
@@ -554,16 +612,25 @@ checkBookBtn.addEventListener('click', async () => {
         if (doc.exists) {
             const book = doc.data();
             bookTitleInput.value = book.title;
+            currentBookForRent = book;
             
             if ((book.availableCopies || 0) <= 0) {
                 showError(rentError, 'No copies available for rent.');
                 rentBookBtn.disabled = true;
             } else {
-                showSuccess(rentError, `Book found: ${book.title} by ${book.author}`);
-                rentBookBtn.disabled = false;
+                // Show available copies for selection
+                showSuccess(rentError, `Book found: ${book.title} by ${book.author}. ${book.availableCopies} copies available.`);
+                
+                // If there are multiple copies, open the copy selection modal
+                if (book.quantity > 1) {
+                    openBookCopyModal(book);
+                } else {
+                    rentBookBtn.disabled = false;
+                }
             }
         } else {
             bookTitleInput.value = '';
+            currentBookForRent = null;
             showError(rentError, 'Book not found. Please check the barcode.');
             rentBookBtn.disabled = true;
         }
@@ -571,6 +638,73 @@ checkBookBtn.addEventListener('click', async () => {
         handleError('checkBook', error);
     }
 });
+
+// NEW: Book Copy Selection Modal
+function openBookCopyModal(book) {
+    try {
+        const copyBookTitle = document.getElementById('copyBookTitle');
+        const copyBookAuthor = document.getElementById('copyBookAuthor');
+        const copyCount = document.getElementById('copyCount');
+        const copySelect = document.getElementById('copySelect');
+        const copyModalError = document.getElementById('copyModalError');
+        
+        copyBookTitle.textContent = book.title;
+        copyBookAuthor.textContent = book.author;
+        copyCount.textContent = book.availableCopies || 0;
+        
+        // Get all book numbers
+        const allBookNumbers = book.bookNumbers || [];
+        const rentedCopies = book.rentedCopies || [];
+        
+        // Filter available copies (not in rentedCopies)
+        const availableBookNumbers = allBookNumbers.filter(num => !rentedCopies.includes(num));
+        
+        // Populate dropdown with available copies
+        copySelect.innerHTML = '<option value="">Select a book copy...</option>';
+        availableBookNumbers.forEach(bookNumber => {
+            const option = document.createElement('option');
+            option.value = bookNumber;
+            option.textContent = bookNumber;
+            copySelect.appendChild(option);
+        });
+        
+        copyModalError.style.display = 'none';
+        bookCopyModal.style.display = 'flex';
+        
+        // Store selected book copy
+        let selectedCopy = null;
+        copySelect.addEventListener('change', (e) => {
+            selectedCopy = e.target.value;
+        });
+        
+        // Confirm button
+        document.getElementById('confirmCopyBtn').onclick = () => {
+            if (!selectedCopy) {
+                showError(copyModalError, 'Please select a book copy.');
+                return;
+            }
+            
+            // Store the selected copy for rental
+            currentBookForRent.selectedCopy = selectedCopy;
+            bookCopyModal.style.display = 'none';
+            rentBookBtn.disabled = false;
+            showSuccess(rentError, `Selected copy: ${selectedCopy}. Ready to rent.`);
+        };
+        
+        // Cancel button
+        document.getElementById('cancelCopyBtn').onclick = () => {
+            bookCopyModal.style.display = 'none';
+        };
+        
+        // Close button
+        document.getElementById('closeCopyModal').onclick = () => {
+            bookCopyModal.style.display = 'none';
+        };
+        
+    } catch (error) {
+        handleError('openBookCopyModal', error);
+    }
+}
 
 rentBookBtn.addEventListener('click', async () => {
     try {
@@ -597,6 +731,7 @@ rentBookBtn.addEventListener('click', async () => {
             return;
         }
         
+        // Check if user already has this book rented
         const existingRental = await db.collection('rentals')
             .where('admissionNumber', '==', admissionNumber)
             .where('barcode', '==', barcode)
@@ -608,10 +743,19 @@ rentBookBtn.addEventListener('click', async () => {
             return;
         }
         
+        // Determine which book copy to rent
+        let bookNumber = '';
+        if (currentBookForRent && currentBookForRent.selectedCopy) {
+            bookNumber = currentBookForRent.selectedCopy;
+        } else if (book.quantity === 1) {
+            bookNumber = book.bookNumbers ? book.bookNumbers[0] : '';
+        }
+        
         const rentalData = {
             admissionNumber: admissionNumber,
             userName: userNameInput.value,
             barcode: barcode,
+            bookNumber: bookNumber,
             bookTitle: bookTitleInput.value,
             rentDate: new Date(rentDate),
             dueDate: new Date(dueDate),
@@ -619,17 +763,28 @@ rentBookBtn.addEventListener('click', async () => {
             createdAt: new Date().toISOString()
         };
         
-        await db.collection('books').doc(barcode).update({
+        // Update book availability
+        const updateData = {
             availableCopies: firebase.firestore.FieldValue.increment(-1)
-        });
+        };
+        
+        // If there's a specific book number, add it to rentedCopies array
+        if (bookNumber) {
+            updateData.rentedCopies = firebase.firestore.FieldValue.arrayUnion(bookNumber);
+        }
+        
+        await db.collection('books').doc(barcode).update(updateData);
         
         await db.collection('rentals').add(rentalData);
         
-        showSuccess(rentSuccess, 'Book rented successfully!');
+        showSuccess(rentSuccess, `Book rented successfully! ${bookNumber ? `Copy: ${bookNumber}` : ''}`);
+        
+        // Reset form
         admissionNumberInput.value = '';
         userNameInput.value = '';
         bookBarcodeInput.value = '';
         bookTitleInput.value = '';
+        currentBookForRent = null;
         rentBookBtn.disabled = true;
     } catch (error) {
         handleError('rentBook', error);
@@ -642,7 +797,7 @@ function renderActiveRentals() {
         const activeRentals = rentals.filter(rental => rental.status === 'active');
         
         if (activeRentals.length === 0) {
-            activeRentalsBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No active rentals found</td></tr>';
+            activeRentalsBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">No active rentals found</td></tr>';
             return;
         }
         
@@ -655,7 +810,7 @@ function renderActiveRentals() {
             
             row.innerHTML = `
                 <td>${rental.admissionNumber}</td>
-                <td>${rental.bookTitle}</td>
+                <td>${rental.bookTitle} ${rental.bookNumber ? `(${rental.bookNumber})` : ''}</td>
                 <td>${formatDate(rental.rentDate)}</td>
                 <td>${formatDate(rental.dueDate)}</td>
                 <td><span class="${daysLeft <= 3 ? 'status-overdue' : ''}">${daysLeftText}</span></td>
@@ -678,7 +833,7 @@ function renderOverdueBooks() {
         );
         
         if (overdueRentals.length === 0) {
-            overdueTableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 30px;">No overdue books found</td></tr>';
+            overdueTableBody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 30px;">No overdue books found</td></tr>';
             return;
         }
         
@@ -690,7 +845,7 @@ function renderOverdueBooks() {
             row.innerHTML = `
                 <td>${rental.admissionNumber}</td>
                 <td>${rental.userName}</td>
-                <td>${rental.bookTitle}</td>
+                <td>${rental.bookTitle} ${rental.bookNumber ? `(${rental.bookNumber})` : ''}</td>
                 <td>${formatDate(rental.dueDate)}</td>
                 <td><span class="status-overdue">${daysOverdue} days</span></td>
                 <td><button class="action-btn edit" onclick="prepareReturn('${rental.id}')">Return</button></td>
@@ -727,7 +882,7 @@ checkReturnBtn.addEventListener('click', async () => {
         currentRentalToReturn = doc.id;
         
         returnAdmissionInput.value = rental.admissionNumber;
-        showSuccess(returnError, `Book found! Rented by ${rental.userName}. Due date: ${formatDate(rental.dueDate)}`);
+        showSuccess(returnError, `Book found! Rented by ${rental.userName}. ${rental.bookNumber ? `Copy: ${rental.bookNumber}` : ''}. Due date: ${formatDate(rental.dueDate)}`);
         returnBookBtn.disabled = false;
     } catch (error) {
         handleError('checkReturn', error);
@@ -746,7 +901,7 @@ window.prepareReturn = async function(rentalId) {
             const daysOverdue = Math.max(0, Math.ceil((today - dueDate) / (1000 * 60 * 60 * 24)));
             
             confirmUserName.textContent = rental.userName;
-            confirmBookTitle.textContent = rental.bookTitle;
+            confirmBookTitle.textContent = `${rental.bookTitle} ${rental.bookNumber ? `(${rental.bookNumber})` : ''}`;
             confirmRentDate.textContent = formatDate(rental.rentDate);
             confirmDueDate.textContent = formatDate(rental.dueDate);
             confirmDaysOverdue.textContent = daysOverdue > 0 ? `${daysOverdue} days` : 'Not overdue';
@@ -769,14 +924,23 @@ confirmReturnBtn.addEventListener('click', async () => {
         const rentalDoc = await db.collection('rentals').doc(currentRentalToReturn).get();
         const rental = rentalDoc.data();
         
+        // Update rental status
         await db.collection('rentals').doc(currentRentalToReturn).update({
             status: 'returned',
             returnDate: new Date().toISOString()
         });
         
-        await db.collection('books').doc(rental.barcode).update({
+        // Update book availability
+        const updateData = {
             availableCopies: firebase.firestore.FieldValue.increment(1)
-        });
+        };
+        
+        // If there's a specific book number, remove it from rentedCopies array
+        if (rental.bookNumber) {
+            updateData.rentedCopies = firebase.firestore.FieldValue.arrayRemove(rental.bookNumber);
+        }
+        
+        await db.collection('books').doc(rental.barcode).update(updateData);
         
         showSuccess(returnModalError, 'Book returned successfully!');
         
